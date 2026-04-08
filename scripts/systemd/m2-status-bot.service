@@ -1,0 +1,11 @@
+[Unit]
+Description=M2 Node Status Bot — posts service health digest to Matrix
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/m2-status-bot.sh
+User=ps
+StandardOutput=journal
+StandardError=journal

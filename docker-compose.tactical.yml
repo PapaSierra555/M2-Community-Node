@@ -1,0 +1,91 @@
+# /opt/tactical-node/docker-compose.yml
+# Node #2 — Tactical/Crypto Stack
+
+services:
+
+  # ── Monero node ────────────────────────────────────────────
+  monerod:
+    image: ghcr.io/sethforprivacy/simple-monerod:v0.18.4.5
+    restart: unless-stopped
+    user: "${FIXUID:-1000}:${FIXGID:-1000}"
+    network_mode: host
+    volumes:
+      - /mnt/nvme/monero/data:/home/monero/.bitmonero
+    command:
+      - --rpc-restricted-bind-ip=0.0.0.0
+      - --rpc-restricted-bind-port=18089
+      - --no-igd
+      - --prune-blockchain
+      - --db-sync-mode=safe:sync
+      - --enable-dns-blocklist
+      - --out-peers=32
+      - --in-peers=64
+      - --limit-rate-up=1048576
+      - --limit-rate-down=1048576
+      - --log-level=0
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "2.0"
+        reservations:
+          memory: 1G
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://127.0.0.1:18089/get_info"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+
+  # ── Reticulum + NomadNet ───────────────────────────────────
+  reticulum:
+    image: python:3.12.12-slim-bookworm
+    restart: unless-stopped
+    network_mode: host
+    command: >
+      bash -c "pip install --upgrade pip -q &&
+               pip install --quiet rns nomadnet lxmf &&
+               rnsd --config /root/.reticulum -v"
+    volumes:
+      - ./data/reticulum:/root/.reticulum
+    # devices line added in Phase 6 after RNode firmware flashed:
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+
+  nomadnet:
+    image: python:3.12.12-slim-bookworm
+    restart: unless-stopped
+    network_mode: host
+    command: >
+      bash -c "pip install --quiet nomadnet &&
+               nomadnet --daemon --config /root/.nomadnetwork"
+    volumes:
+      - ./data/nomadnet:/root/.nomadnetwork
+    depends_on:
+      - reticulum
+
+  # ── MQTT Broker ────────────────────────────────────────────
+  mosquitto:
+    image: eclipse-mosquitto:2.0.22
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./config/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./data/mosquitto:/mosquitto/data
+      - ./logs/mosquitto:/mosquitto/log
+
+  # ── Headscale (Tailscale control plane) ────────────────────
+  headscale:
+    image: headscale/headscale:0.28.0
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "50443:50443"
+    volumes:
+      - ./config/headscale:/etc/headscale
+      - ./data/headscale:/var/lib/headscale
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    command: serve
+    profiles:
+      - vpn

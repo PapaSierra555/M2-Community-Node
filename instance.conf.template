@@ -1,0 +1,62 @@
+# ============================================================
+# M2 Community Node — Instance Configuration Template
+# ============================================================
+# Copy this file to instance.conf and fill in your values.
+# instance.conf is gitignored — never commit it.
+# This template IS tracked and shows every value you must set.
+#
+# Every hardcoded value in this project traces back to a
+# variable here. If you're building your own node, this is
+# the only file you need to edit.
+# ============================================================
+
+
+# ── Network ──────────────────────────────────────────────────
+NODE1_IP=192.168.8.10          # Comms Pi (Matrix, Element, Tor, I2P)
+NODE2_IP=192.168.8.20          # Tactical Pi (OTS, Reticulum, Monero, Headscale)
+GATEWAY_IP=192.168.8.1         # GL.iNet router LAN address
+SUBNET=192.168.8.0/24
+
+# ── WiFi ─────────────────────────────────────────────────────
+WIFI_SSID=CommunityNode
+WIFI_SECURITY=WPA              # WPA, WEP, or nopass
+# WIFI_PASSWORD lives in M2_SECRETS.md (gitignored)
+
+# ── Domain ───────────────────────────────────────────────────
+BASE_DOMAIN=yourdomain.com
+ELEMENT_DOMAIN=element.yourdomain.com
+TAK_DOMAIN=tak.yourdomain.com
+HEADSCALE_DOMAIN=m2vpn.yourdomain.com
+ATAK_ENROLL_DOMAIN=atakenroll.yourdomain.com
+
+# ── Service URLs (LAN) ────────────────────────────────────────
+ELEMENT_LAN_URL=http://192.168.8.10:8080
+COMMUNITY_PAGE_URL=http://192.168.8.10:8081
+ATAK_ENROLL_URL=https://atakenroll.yourdomain.com:8447/atak-connect.html
+MUMBLE_HOST=192.168.8.20
+MUMBLE_PORT=64738
+MONERO_RPC_HOST=192.168.8.20
+MONERO_RPC_PORT=18089
+
+# ── Tor Hidden Services ───────────────────────────────────────
+# Generate with: cat /var/lib/tor/<service>/hostname
+TOR_ELEMENT_ONION=YOUR_ONION_ADDRESS.onion
+TOR_COMMUNITY_ONION=YOUR_ONION_ADDRESS.onion
+
+# ── Cloudflare Tunnel ─────────────────────────────────────────
+# Set up via: cloudflared tunnel create <name>
+CLOUDFLARE_TUNNEL_NAME=YOUR_TUNNEL_NAME
+CLOUDFLARE_TUNNEL_ID=YOUR_TUNNEL_ID
+
+# ── Event ─────────────────────────────────────────────────────
+EVENT_NAME=YourEvent
+EVENT_FULL_NAME=Your Event Full Name
+EVENT_DATE=Month DD-DD, YYYY
+EVENT_LOCATION=City, State
+
+# ── Hardware ──────────────────────────────────────────────────
+# Reference only — update if you substitute components
+NODE1_HOSTNAME=node1
+NODE2_HOSTNAME=node2
+LORA_LEFT_ROLE=RNode/Reticulum     # Heltec V3 — left slot
+LORA_RIGHT_ROLE=Meshtastic         # Heltec V3 — right slot

@@ -1,0 +1,13 @@
+{
+    "default_server_config": {
+      "m.homeserver": {
+        "base_url": "https://m2-matrix.yourdomain.com",
+        "server_name": "m2.yourdomain.com"
+      }
+    },
+    "brand": "Community Node",
+    "disable_custom_urls": true,
+    "disable_guests": true,
+    "disable_login_language_selector": true,
+    "default_theme": "dark"
+}

@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Community Node</title>
+  <style>
+    /* Community Node — Visitor page v5.0
+       Served on port 8081 via nginx (as index.html).
+       Mobile-first, dark theme, no external dependencies.
+       Two modes: phone (default) and kiosk (?from=kiosk).
+       Kiosk mode: larger layout, QR codes shown, screensaver.
+       Two tabs: Connect (default) and Status (live health). */
+
+    :root {
+      /* Base grays — GitHub Dark */
+      --bg-primary: #0d1117;
+      --bg-surface: #161b22;
+      --bg-elevated: #1f2937;
+      --border: #21262d;
+      --text-primary: #f0f6fc;
+      --text-secondary: #8b949e;
+      --text-tertiary: #6e7681;
+
+      /* Status colors */
+      --status-ok: #4caf50;
+      --status-warn: #ffb74d;
+      --status-error: #f44336;
+      --status-unknown: #4a5568;
+
+      /* Interactive accents */
+      --accent-blue: #3b82f6;
+      --accent-blue-soft: #64b5f6;
+      --accent-green: #22c55e;
+      --accent-red: #ef4444;
+      --accent-purple: #bc8cff;
+      --accent-amber: #ffb74d;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-primary);
+      color: #c9d1d9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* ── Tab bar ──────────────────────────────────────── */
+
+    .tab-bar {
+      display: flex;
+      background: var(--bg-surface);
+      border-bottom: 2px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .tab-bar button {
+      flex: 1;
+      padding: 0.75rem 0;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: all 0.15s;
+      border-bottom: 3px solid transparent;
+    }
+
+    .tab-bar button.active {
+      color: var(--text-primary);
+      border-bottom-color: var(--accent-blue);
+    }
+
+    .tab-bar button:active { background: var(--border); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 2rem;
+    }
+
+    /* ── Kiosk mode — scale up for touchscreen ─────────── */
+    body.kiosk-mode { font-size: 24px; }
+    body.kiosk-mode .container { max-width: 800px; padding: 1.25rem 2rem 3rem; }
+    body.kiosk-mode .tab-bar button { font-size: 1.1rem; padding: 1rem 0; }
+    body.kiosk-mode { padding-left: 72px; }
+
+    /* ── Hero ─────────────────────────────────────────── */
+
+    .hero {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.25rem;
+    }
+
+    .hero-logos {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .hero-text h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.1rem;
+      line-height: 1.2;
+    }
+
+    .hero-text .tagline {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    /* ── Section headers ─────────────────────────────── */
+
+    h2 {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      margin-bottom: 0.75rem;
+    }
+
+    section { margin-bottom: 1.25rem; }
+
+    /* ── Share WiFi ──────────────────────────────────── */
+
+    .share-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .share-card .qr-box {
+      width: 140px;
+      height: 140px;
+      flex-shrink: 0;
+      background: #ffffff;
+      border-radius: 4px;
+      padding: 8px;
+    }
+    body.kiosk-mode .share-card .qr-box {
+      width: 200px;
+      height: 200px;
+      padding: 12px;
+    }
+
+    .share-card .qr-box img {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .share-card .share-info {
+      font-size: 0.85rem;
+      color: #c9d1d9;
+    }
+
+    .share-card .share-info strong { color: var(--text-primary); }
+
+    .share-card .share-info .ssid {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.25rem;
+    }
+
+    .wifi-band-note {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      display: block;
+      margin-top: 0.3rem;
+    }
+
+    .wifi-vpn-note {
+      font-size: 0.75rem;
+      color: #d29922;
+      display: block;
+      margin-top: 0.2rem;
+    }
+
+    /* QR codes hidden on phone — visible on kiosk */
+    .kiosk-only { display: none; }
+    body.kiosk-mode .kiosk-only { display: flex; }
+
+    /* ── Kiosk back button — matches kiosk-map.html ── */
+    #kiosk-back {
+      display: none;
+      position: fixed;
+      left: 0;
+      top: 0;
+      z-index: 9999;
+      width: 56px;
+      height: 100%;
+      background: rgba(13,17,23,0.7);
+      border: none;
+      cursor: pointer;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      color: var(--text-primary);
+      transition: background 0.2s;
+    }
+    #kiosk-back:hover, #kiosk-back:active { background: rgba(13,17,23,0.95); }
+    #kiosk-back svg { width: 24px; height: 24px; }
+    #kiosk-back span { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+    body.kiosk-mode #kiosk-back { display: flex; }
+
+    /* ── Action links ────────────────────────────────── */
+
+    .action-link {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.85rem 1rem;
+      background: var(--accent-blue);
+      border: 1px solid var(--accent-blue);
+      border-radius: 8px;
+      text-decoration: none;
+      color: #fff;
+      transition: background 0.15s;
+    }
+
+    .action-link:hover, .action-link:active {
+      background: #60a5fa;
+      border-color: #60a5fa;
+      text-decoration: none;
+    }
+
+    .action-link .al-icon {
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+    }
+    body.kiosk-mode .action-link .al-icon { width: 48px; height: 48px; }
+
+    .action-link .al-icon svg {
+      width: 100%;
+      height: 100%;
+      stroke: #fff;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    .action-link .al-text strong {
+      display: block;
+      font-size: 0.95rem;
+      color: #fff;
+    }
+
+    .action-link .al-text span {
+      font-size: 0.75rem;
+      color: #ffffffcc;
+    }
+
+    /* ── Element QR row (kiosk only) ────────────────── */
+
+    .qr-row {
+      display: flex;
+      justify-content: center;
+      gap: 3rem;
+      margin-top: 0.75rem;
+    }
+
+    .qr-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .qr-item .qr-box {
+      width: 140px;
+      height: 140px;
+      background: #ffffff;
+      border-radius: 4px;
+      padding: 8px;
+    }
+    body.kiosk-mode .qr-item .qr-box {
+      width: 180px;
+      height: 180px;
+      padding: 10px;
+    }
+
+    .qr-item .qr-box img {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .qr-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Collapsible sections ────────────────────────── */
+
+    .collapsible {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .collapsible-toggle {
+      width: 100%;
+      padding: 0.85rem 1rem;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 48px;
+    }
+
+    .collapsible-toggle:hover { color: #d4d8e0; }
+
+    .collapsible-arrow {
+      transition: transform 0.2s;
+      font-size: 0.75rem;
+    }
+
+    .collapsible-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+
+    .collapsible.open .collapsible-body { max-height: 600px; }
+    .collapsible.open .collapsible-arrow { transform: rotate(90deg); }
+
+    .collapsible-inner { padding: 0 1rem 1rem; }
+
+    /* ── Service cards (Connect tab) ─────────────────── */
+
+    .services {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+
+    .svc-static {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+    }
+
+    .svc-static h3 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.15rem;
+    }
+
+    .svc-static p {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    /* ── Links ────────────────────────────────────────── */
+
+    a { color: var(--accent-blue-soft); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Onboarding steps ─────────────────────────────── */
+
+    .onboard-steps {
+      counter-reset: step;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .onboard-steps li {
+      counter-increment: step;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      padding: 0.5rem 0;
+      font-size: 0.82rem;
+      color: #c9d1d9;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .onboard-steps li:last-child { border-bottom: none; }
+
+    .onboard-steps li::before {
+      content: counter(step);
+      flex-shrink: 0;
+      width: 1.5rem;
+      height: 1.5rem;
+      background: var(--accent-blue);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 0.1rem;
+    }
+
+    .onboard-steps li strong { color: var(--text-primary); }
+
+    .app-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.35rem;
+    }
+
+    .app-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.3rem 0.6rem;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--accent-blue-soft);
+      text-decoration: none;
+    }
+
+    .app-link:hover { background: #2a3444; text-decoration: none; }
+
+    /* (captive portal banner removed — QR code onboarding instead) */
+
+    /* ── Footer ──────────────────────────────────────── */
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding-top: 1rem;
+      margin-top: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--text-tertiary);
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    /* ── Status tab ──────────────────────────────────── */
+
+    .status-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .status-header h2 { margin-bottom: 0; }
+
+    .status-meta {
+      font-size: 0.72rem;
+      color: var(--text-tertiary);
+      text-align: right;
+    }
+
+    .status-meta .updated-label { display: block; }
+
+    .node-group {
+      margin-bottom: 1rem;
+    }
+
+    .node-group-header {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0.4rem 0.75rem;
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+    }
+
+    .node-group-header.comms {
+      color: var(--accent-blue-soft);
+      background: #1a3a6633;
+      border: 1px solid #1a3a6655;
+    }
+
+    .node-group-header.tactical {
+      color: var(--accent-amber);
+      background: #4a3a1033;
+      border: 1px solid #4a3a1055;
+    }
+
+    .svc-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 0.35rem;
+    }
+
+    .svc-row.comms { border-left: 3px solid var(--accent-blue-soft); }
+    .svc-row.tactical { border-left: 3px solid var(--accent-amber); }
+
+    .svc-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot-green  { background: var(--status-ok); box-shadow: 0 0 4px #4caf5088; }
+    .dot-yellow { background: var(--status-warn); box-shadow: 0 0 4px #ffb74d88; }
+    .dot-red    { background: var(--status-error); box-shadow: 0 0 4px #f4433688; }
+    .dot-gray   { background: var(--status-unknown); }
+
+    .svc-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .svc-detail {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      margin-left: auto;
+    }
+
+    /* Vitals grid */
+    .vitals-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .vital-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.6rem 0.75rem;
+    }
+
+    .vital-card .v-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .vital-card .v-value {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-family: "SFMono-Regular", Consolas, monospace;
+    }
+
+    .vital-card .v-sub {
+      font-size: 0.68rem;
+      color: var(--text-secondary);
+    }
+
+    .vital-card.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .status-offline-msg {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+    }
+
+    .status-offline-msg .offline-icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      opacity: 0.5;
+    }
+
+    /* ── Screensaver (kiosk only) ────────────────────── */
+
+    #screensaver {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: #000;
+      z-index: 10000;
+      cursor: none;
+      transition: opacity 2s ease;
+    }
+
+    #screensaver.fading { opacity: 1; }
+    #screensaver.visible { display: block; opacity: 1; }
+
+    #ss-clock {
+      position: absolute;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 48px;
+      font-weight: 300;
+      color: rgba(240, 246, 252, 0.25);
+      white-space: nowrap;
+    }
+
+    #ss-label {
+      position: absolute;
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(240, 246, 252, 0.12);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+  </style>
+</head>
+<body>
+<button id="kiosk-back" onclick="history.back()" title="Back to Kiosk">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="15 18 9 12 15 6"/>
+  </svg>
+  <span>Back</span>
+</button>
+
+<!-- ── Tab bar ────────────────────────────────────────── -->
+<div class="tab-bar">
+  <button class="active" onclick="showTab('connect')">Connect</button>
+  <button onclick="showTab('status')">Status</button>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- TAB 1: CONNECT — all original content                -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="tab-connect" class="tab-panel active">
+<main class="container">
+
+  <!-- ── Hero — logos left, title right ────────────────── -->
+  <header class="hero">
+    <div class="hero-logos">
+      <!-- CCC — C-shaped honeycomb -->
+      <svg width="28" height="32" viewBox="0 2 95 108" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="38,5 48,5 53,14 48,23 38,23 33,14" fill="#555" stroke="#444" stroke-width="0.6"/>
+        <polygon points="57,5 67,5 72,14 67,23 57,23 52,14" fill="#666" stroke="#444" stroke-width="0.6"/>
+        <polygon points="76,5 86,5 91,14 86,23 76,23 71,14" fill="#555" stroke="#444" stroke-width="0.6"/>
+        <polygon points="28,21 38,21 43,30 38,39 28,39 23,30" fill="#666" stroke="#444" stroke-width="0.6"/>
+        <polygon points="47,21 57,21 62,30 57,39 47,39 42,30" fill="#555" stroke="#444" stroke-width="0.6"/>
+        <polygon points="19,37 29,37 34,46 29,55 19,55 14,46" fill="#555" stroke="#444" stroke-width="0.6"/>
+        <polygon points="38,37 48,37 53,46 48,55 38,55 33,46" fill="#666" stroke="#444" stroke-width="0.6"/>
+        <polygon points="19,53 29,53 34,62 29,71 19,71 14,62" fill="#666" stroke="#444" stroke-width="0.6"/>
+        <polygon points="38,53 48,53 53,62 48,71 38,71 33,62" fill="#555" stroke="#444" stroke-width="0.6"/>
+        <polygon points="28,69 38,69 43,78 38,87 28,87 23,78" fill="#555" stroke="#444" stroke-width="0.6"/>
+        <polygon points="47,69 57,69 62,78 57,87 47,87 42,78" fill="#666" stroke="#444" stroke-width="0.6"/>
+        <polygon points="38,85 48,85 53,94 48,103 38,103 33,94" fill="#666" stroke="#444" stroke-width="0.6"/>
+        <polygon points="57,85 67,85 72,94 67,103 57,103 52,94" fill="#555" stroke="#444" stroke-width="0.6"/>
+        <polygon points="76,85 86,85 91,94 86,103 76,103 71,94" fill="#555" stroke="#444" stroke-width="0.6"/>
+      </svg>
+      <!-- LFHI — Shield -->
+      <svg width="26" height="30" viewBox="0 0 80 95" xmlns="http://www.w3.org/2000/svg">
+        <path d="M5,15 L5,55 Q5,78 40,90 Q75,78 75,55 L75,15 Q57,10 40,5 Q23,10 5,15 Z" fill="#1a1a1a" stroke="#444" stroke-width="1.5"/>
+        <path d="M8,17 L8,54 Q8,75 40,87 Q72,75 72,54 L72,17 Q56,12 40,8 Q24,12 8,17 Z" fill="#2d2d2d" stroke="none"/>
+        <path d="M9,18 L9,47 L39,47 L39,18 Q24,13 9,18 Z" fill="#c92a2a"/>
+        <path d="M41,18 L41,47 L71,47 L71,18 Q56,13 41,18 Z" fill="#2d2d2d"/>
+        <path d="M9,49 L9,54 Q9,74 40,86 L39,49 Z" fill="#2d2d2d"/>
+        <path d="M41,49 L40,86 Q71,74 71,54 L71,49 Z" fill="#c92a2a"/>
+      </svg>
+    </div>
+    <div class="hero-text">
+      <h1>Community Node</h1>
+      <p class="tagline">Emergency WiFi &middot; Local Mesh &middot; Private Comms</p>
+    </div>
+  </header>
+
+  <!-- ── Help Others Connect — WiFi share ────────────── -->
+  <section>
+    <h2>Help Others Connect</h2>
+    <div class="share-card">
+      <div class="qr-box">
+        <img src="svg/qr-wifi.svg" alt="WiFi QR — show this to another person to scan">
+      </div>
+      <div class="share-info">
+        <div class="ssid">Community Node WiFi</div>
+        <strong>Show this QR code</strong> to someone nearby and they can scan it to join automatically.<br>
+        <span class="wifi-band-note">5 GHz &middot; WPA2</span>
+        <span class="wifi-vpn-note">Disable any VPN on your phone to reach node services</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Community Chat — single action ──────────────── -->
+  <section>
+    <h2>Community Chat</h2>
+    <a href="http://192.168.8.10:8080" class="action-link">
+      <span class="al-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor"/></svg></span>
+      <span class="al-text">
+        <strong>Open Element Web</strong>
+        <span>Encrypted group chat &mdash; tap to open</span>
+      </span>
+    </a>
+    <!-- Kiosk: QR codes for second person to scan -->
+    <div class="qr-row kiosk-only" style="margin-top:0.75rem;">
+      <div class="qr-item">
+        <div class="qr-box"><img src="svg/qr-element-lan.svg" alt="Element LAN QR"></div>
+        <span class="qr-label">On WiFi</span>
+      </div>
+      <div class="qr-item">
+        <div class="qr-box"><img src="svg/qr-element-clearnet.svg" alt="Element Clearnet QR"></div>
+        <span class="qr-label">From Anywhere</span>
+      </div>
+    </div>
+    <p style="font-size:0.78rem;color:var(--text-secondary);margin-top:0.5rem;">
+      Ask the node operator for a registration token.<br>
+      Join <strong style="color:var(--text-primary);">#general</strong> to get started.
+      Also available at <a href="https://element.yourdomain.com">element.yourdomain.com</a>
+    </p>
+  </section>
+
+  <!-- ── Other Services (collapsed) ──────────────────── -->
+  <section>
+    <div class="collapsible" id="advancedTools">
+      <button class="collapsible-toggle" aria-expanded="false" aria-controls="advancedToolsBody" onclick="toggleCollapsible('advancedTools')">
+        Other Services
+        <span class="collapsible-arrow">&#9654;</span>
+      </button>
+      <div class="collapsible-body" id="advancedToolsBody">
+        <div class="collapsible-inner">
+          <div class="services">
+            <div class="svc-static">
+              <h3>Meshtastic</h3>
+              <p>Long-range LoRa mesh. Install the Meshtastic app, pair via Bluetooth.</p>
+            </div>
+            <div class="svc-static">
+              <h3>OpenTAK / ATAK</h3>
+              <p>On WiFi: ATAK app connects to 192.168.8.20. Remote: browser at <a href="https://tak.yourdomain.com">tak.yourdomain.com</a> (web map, no app needed).</p>
+            </div>
+            <div class="svc-static">
+              <h3>Reticulum</h3>
+              <p>Encrypted mesh over LoRa + WiFi. Install Sideband or NomadNet.</p>
+            </div>
+            <div class="svc-static">
+              <h3>Monero Node</h3>
+              <p>Full blockchain node. Point your wallet to <strong style="color:var(--accent-blue-soft);">192.168.8.20:18089</strong></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── ATAK Onboarding ─────────────────────────────── -->
+  <section>
+    <h2>Tactical Map &mdash; ATAK Setup</h2>
+    <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.75rem;">
+      ATAK gives you live positions, markers, and team chat on a shared map.
+      These steps are for phones on the Community Node WiFi.
+      Not here? Use the web map at <a href="https://tak.yourdomain.com">tak.yourdomain.com</a> &mdash; no app needed.
+    </p>
+
+    <ol class="onboard-steps">
+      <li>
+        <div>
+          <strong>Install ATAK-CIV</strong> from the Play Store (Android only).
+          Tactical map with live team positions, markers, and messaging.
+          <div class="app-links">
+            <a href="https://play.google.com/store/apps/details?id=com.atakmap.app.civ" class="app-link">ATAK-CIV</a>
+          </div>
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>Install Meshtastic plugin</strong> &mdash; bridges ATAK over LoRa mesh radio so your position and messages work without WiFi or cell service. Download the APK from GitHub (not on Play Store).
+          <div class="app-links">
+            <a href="https://github.com/meshtastic/ATAK-Plugin/releases" class="app-link">Meshtastic (GitHub)</a>
+          </div>
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>Install Mumla</strong> &mdash; push-to-talk voice chat with your team, like a radio but over WiFi.
+          <div class="app-links">
+            <a href="https://play.google.com/store/apps/details?id=se.lublin.mumla" class="app-link">Mumla</a>
+          </div>
+        </div>
+      </li>
+      <li><div><strong>Open ATAK</strong> &mdash; grant location and battery optimization permissions when prompted.</div></li>
+      <li><div><strong>Ask the operator</strong> to connect your device to the server. They will configure your connection and callsign.</div></li>
+      <li><div><strong>Voice:</strong> Open Mumla, connect to <strong>192.168.8.20</strong> port <strong>64738</strong>. No password needed.</div></li>
+    </ol>
+
+    <!-- QR codes — main apps -->
+    <h2 style="margin-top:1.25rem;">ATAK App</h2>
+    <div class="qr-row">
+      <div class="qr-item">
+        <div class="qr-box"><img src="svg/qr-atak-android.svg" alt="ATAK-CIV Play Store QR"></div>
+        <span class="qr-label">ATAK-CIV (Android)</span>
+      </div>
+      <div class="qr-item">
+        <div class="qr-box"><img src="svg/qr-itak-ios.svg" alt="iTAK App Store QR"></div>
+        <span class="qr-label">iTAK (iPhone)</span>
+      </div>
+    </div>
+
+    <!-- Divider -->
+    <div style="border-top:1px solid var(--border);margin:1.25rem 0;"></div>
+
+    <!-- QR codes — plugins + voice -->
+    <h2>ATAK Plugins</h2>
+    <div class="qr-row">
+      <div class="qr-item">
+        <div class="qr-box"><img src="svg/qr-meshtastic.svg" alt="Meshtastic ATAK Plugin GitHub QR"></div>
+        <span class="qr-label">Meshtastic (GitHub APK)</span>
+      </div>
+      <div class="qr-item">
+        <div class="qr-box"><img src="svg/qr-mumla.svg" alt="Mumla Play Store QR"></div>
+        <span class="qr-label">Mumla (Voice)</span>
+      </div>
+    </div>
+
+    <p style="font-size:0.72rem;color:var(--text-tertiary);margin-top:0.75rem;text-align:center;">
+      Meshtastic plugin is a direct APK download. To install: open the .apk file, tap Install, and allow &ldquo;Install from unknown sources&rdquo; when prompted. You may need to enable this in Settings &gt; Apps &gt; Special access &gt; Install unknown apps.
+    </p>
+    <p style="font-size:0.72rem;color:var(--text-tertiary);margin-top:0.5rem;text-align:center;">
+      <strong style="color:var(--text-secondary);">Connecting to the map:</strong><br>
+      On the WiFi &mdash; ATAK app connects to 192.168.8.20<br>
+      Remote &mdash; browser at <a href="https://tak.yourdomain.com">tak.yourdomain.com</a> (web map, no app needed)<br>
+      Remote ATAK &mdash; ask an operator for VPN access (advanced users only)
+    </p>
+  </section>
+
+  <footer role="contentinfo">
+    Open source, self-hosted, community operated.<br>
+    No tracking. No third parties. No cloud dependencies.<br>
+    <a href="mailto:info@yourdomain.com" style="color:var(--accent-blue-soft);">info@yourdomain.com</a>
+  </footer>
+
+</main>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- TAB 2: STATUS — live service health dashboard        -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="tab-status" class="tab-panel">
+<div class="container">
+
+  <div class="status-header">
+    <h2>Service Health</h2>
+    <div class="status-meta">
+      <span class="updated-label" id="status-age">Checking...</span>
+      <span id="status-pipeline" style="color:var(--status-unknown);">waiting for data</span>
+    </div>
+  </div>
+
+  <!-- Pi #1 — Comms -->
+  <div class="node-group">
+    <div class="node-group-header comms">Pi #1 &mdash; comms (192.168.8.10)</div>
+    <div class="svc-row comms" id="svc-element">
+      <span class="svc-dot dot-gray"></span>
+      <span class="svc-name">Element Web</span>
+      <span class="svc-detail">Chat</span>
+    </div>
+    <div class="svc-row comms" id="svc-conduit">
+      <span class="svc-dot dot-gray"></span>
+      <span class="svc-name">Conduit</span>
+      <span class="svc-detail">Matrix API</span>
+    </div>
+    <div class="svc-row comms" id="svc-nginx">
+      <span class="svc-dot dot-gray"></span>
+      <span class="svc-name">Nginx</span>
+      <span class="svc-detail">Proxy</span>
+    </div>
+    <div class="svc-row comms" id="svc-cloudflared">
+      <span class="svc-dot dot-gray"></span>
+      <span class="svc-name">Cloudflared</span>
+      <span class="svc-detail">Tunnel</span>
+    </div>
+    <div class="svc-row comms" id="svc-tor">
+      <span class="svc-dot dot-gray"></span>
+      <span class="svc-name">Tor</span>
+      <span class="svc-detail">Hidden Svc</span>
+    </div>
+  </div>
+
+  <!-- Pi #2 — Tactical -->
+  <div class="node-group">
+    <div class="node-group-header tactical">Pi #2 &mdash; tactical (192.168.8.20)</div>
+    <div class="svc-row tactical" id="svc-opentakserver">
+      <span class="svc-dot dot-gray"></span>
+      <span class="svc-name">OpenTAK</span>
+      <span class="svc-detail">ATAK</span>
+    </div>
+    <div class="svc-row tactical" id="svc-monerod">
+      <span class="svc-dot dot-gray"></span>
+      <span class="svc-name">Monerod</span>
+      <span class="svc-detail" id="monero-detail">&mdash;</span>
+    </div>
+    <div class="svc-row tactical" id="svc-headscale">
+      <span class="svc-dot dot-gray"></span>
+      <span class="svc-name">Headscale</span>
+      <span class="svc-detail">VPN</span>
+    </div>
+    <div class="svc-row tactical" id="svc-mosquitto">
+      <span class="svc-dot dot-gray"></span>
+      <span class="svc-name">Mosquitto</span>
+      <span class="svc-detail">MQTT</span>
+    </div>
+    <div class="svc-row tactical" id="svc-reticulum">
+      <span class="svc-dot dot-gray"></span>
+      <span class="svc-name">Reticulum</span>
+      <span class="svc-detail">Mesh</span>
+    </div>
+  </div>
+
+  <!-- System vitals -->
+  <div class="vitals-grid">
+    <div class="vital-card">
+      <span class="v-label">Uptime</span>
+      <span class="v-value" id="v-uptime">&mdash;</span>
+    </div>
+    <div class="vital-card">
+      <span class="v-label">Monero Sync</span>
+      <span class="v-value" id="v-monero-sync">&mdash;</span>
+      <span class="v-sub" id="v-monero-height">&mdash;</span>
+    </div>
+    <div class="vital-card">
+      <span class="v-label">Comms (Pi 1)</span>
+      <span class="v-value" id="v-pi1-temp">&mdash;</span>
+      <span class="v-sub"><span id="v-pi1-ram">RAM: &mdash;</span></span>
+    </div>
+    <div class="vital-card">
+      <span class="v-label">Tactical (Pi 2)</span>
+      <span class="v-value" id="v-pi2-temp">&mdash;</span>
+      <span class="v-sub"><span id="v-pi2-ram">RAM: &mdash;</span></span>
+    </div>
+  </div>
+
+  <div id="status-offline" class="status-offline-msg" style="display:none;">
+    <div class="offline-icon">&#x26A0;</div>
+    <strong>Status data unavailable</strong><br>
+    The status endpoint is not responding. The node may still be running &mdash;
+    this page just can't reach the health data right now.
+  </div>
+
+</div>
+</div>
+
+<!-- ── Screensaver (kiosk mode only) ──────────────────── -->
+<div id="screensaver">
+  <div id="ss-clock"></div>
+  <div id="ss-label">Community Node</div>
+</div>
+
+<script>
+  /* ── Kiosk mode detection ─────────────────────────────────────── */
+  var isKiosk = window.location.search.indexOf('from=kiosk') !== -1;
+  if (isKiosk) {
+    document.body.classList.add('kiosk-mode');
+  }
+
+  /* (captive portal banner removed — QR code onboarding instead) */
+
+  /* ── Tab switching ────────────────────────────────────────────── */
+  function showTab(name) {
+    document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+    document.querySelectorAll('.tab-bar button').forEach(function (b) { b.classList.remove('active'); });
+    document.getElementById('tab-' + name).classList.add('active');
+    var tabs = ['connect', 'status'];
+    var idx = tabs.indexOf(name);
+    if (idx >= 0) document.querySelectorAll('.tab-bar button')[idx].classList.add('active');
+    resetIdle();
+  }
+
+  /* ── Collapsible toggle with ARIA ─────────────────────────────── */
+  function toggleCollapsible(id) {
+    var el = document.getElementById(id);
+    var isOpen = el.classList.toggle('open');
+    var btn = el.querySelector('.collapsible-toggle');
+    btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  }
+
+  /* ── Status polling ───────────────────────────────────────────── */
+  var generatedAt = null;
+  var fetchFails = 0;
+
+  var svcBaseLabels = {
+    'svc-element': 'Chat',
+    'svc-conduit': 'Matrix API',
+    'svc-nginx': 'Proxy',
+    'svc-cloudflared': 'Tunnel',
+    'svc-tor': 'Hidden Svc',
+    'svc-opentakserver': 'ATAK',
+    'svc-mosquitto': 'MQTT',
+    'svc-reticulum': 'Mesh'
+  };
+
+  function fetchStatus() {
+    fetch('/status.json', {cache: 'no-store'})
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        fetchFails = 0;
+        document.getElementById('status-offline').style.display = 'none';
+
+        if (data.generated_at) generatedAt = data.generated_at;
+
+        /* Service dots */
+        if (data.services) {
+          Object.keys(data.services).forEach(function (svc) {
+            var el = document.getElementById('svc-' + svc);
+            if (!el) return;
+            var dot = el.querySelector('.svc-dot');
+            var isUp = data.services[svc] === 'up';
+            dot.className = 'svc-dot ' + (isUp ? 'dot-green' : 'dot-red');
+            var base = svcBaseLabels['svc-' + svc];
+            if (base) {
+              el.querySelector('.svc-detail').textContent = base + ' \u00b7 ' + (isUp ? 'UP' : 'DOWN');
+            }
+          });
+        }
+
+        /* Vitals */
+        if (data.uptime) document.getElementById('v-uptime').textContent = data.uptime;
+
+        /* Monero */
+        if (data.monero_sync !== undefined) {
+          var pct = parseFloat(data.monero_sync);
+          var syncEl = document.getElementById('v-monero-sync');
+          if (pct >= 99.9) {
+            syncEl.textContent = 'Synced';
+            syncEl.style.color = '#4caf50';
+          } else {
+            syncEl.textContent = data.monero_sync + '%';
+            syncEl.style.color = '#ffb74d';
+          }
+        }
+        if (data.monero_height !== undefined) {
+          document.getElementById('v-monero-height').textContent = 'Height: ' + data.monero_height;
+        }
+
+        /* Headscale peers */
+        if (data.headscale_peers !== undefined) {
+          var hEl = document.getElementById('svc-headscale');
+          if (hEl) {
+            hEl.querySelector('.svc-detail').textContent = data.headscale_peers > 0 ? data.headscale_peers + ' peers' : 'VPN';
+          }
+        }
+
+        /* Pi vitals */
+        function setTemp(elId, tempStr) {
+          var el = document.getElementById(elId);
+          if (!el || !tempStr) { if (el) el.textContent = '\u2014'; return; }
+          el.textContent = tempStr;
+          var t = parseFloat(tempStr);
+          if (t > 75) el.style.color = '#f44336';
+          else if (t > 65) el.style.color = '#ffb74d';
+          else el.style.color = '#4caf50';
+        }
+
+        if (data.pi1) {
+          setTemp('v-pi1-temp', data.pi1.cpu_temp);
+          document.getElementById('v-pi1-ram').textContent = 'RAM: ' + (data.pi1.ram_usage || '\u2014');
+        } else if (data.cpu_temp !== undefined) {
+          setTemp('v-pi1-temp', data.cpu_temp);
+          document.getElementById('v-pi1-ram').textContent = 'RAM: ' + (data.ram_usage || '\u2014');
+        }
+
+        if (data.pi2) {
+          setTemp('v-pi2-temp', data.pi2.cpu_temp);
+          document.getElementById('v-pi2-ram').textContent = 'RAM: ' + (data.pi2.ram_usage || '\u2014');
+        }
+
+        updateStaleness();
+      })
+      .catch(function () {
+        fetchFails++;
+        if (fetchFails >= 3) {
+          document.getElementById('status-offline').style.display = 'block';
+        }
+        updateStaleness();
+      });
+  }
+
+  function updateStaleness() {
+    var ageEl = document.getElementById('status-age');
+    var pipeEl = document.getElementById('status-pipeline');
+    if (!generatedAt) {
+      ageEl.textContent = 'No data';
+      pipeEl.textContent = 'status.json not loaded';
+      pipeEl.style.color = '#f44336';
+      return;
+    }
+    var ageSec = Math.max(0, Math.round(Date.now() / 1000) - generatedAt);
+    if (ageSec < 90) {
+      ageEl.textContent = ageSec + 's ago';
+      pipeEl.textContent = 'live';
+      pipeEl.style.color = '#4caf50';
+    } else if (ageSec < 300) {
+      ageEl.textContent = Math.round(ageSec / 60) + 'm ago';
+      pipeEl.textContent = 'delayed';
+      pipeEl.style.color = '#ffb74d';
+    } else {
+      ageEl.textContent = Math.round(ageSec / 60) + 'm ago';
+      pipeEl.textContent = 'STALE';
+      pipeEl.style.color = '#f44336';
+    }
+  }
+
+  setInterval(fetchStatus, 30000);
+  fetchStatus();
+  setInterval(updateStaleness, 5000);
+
+  /* ── Screensaver (kiosk mode only) ─────────────────────────────── */
+  var IDLE_MS = 10 * 60 * 1000;
+  var idleTimer = null;
+  var ssActive = false;
+  var ssX = 100, ssY = 100, ssDx = 0.6, ssDy = 0.4;
+  var ssRaf = null;
+
+  function resetIdle() {
+    if (!isKiosk) return;
+    clearTimeout(idleTimer);
+    if (ssActive) hideScreensaver();
+    if (IDLE_MS > 0) {
+      idleTimer = setTimeout(showScreensaver, IDLE_MS);
+    }
+  }
+
+  function showScreensaver() {
+    ssActive = true;
+    var ss = document.getElementById('screensaver');
+    ss.style.display = 'block';
+    ss.style.opacity = '0';
+    requestAnimationFrame(function () {
+      ss.style.opacity = '1';
+    });
+    animateScreensaver();
+  }
+
+  function hideScreensaver() {
+    ssActive = false;
+    var ss = document.getElementById('screensaver');
+    ss.style.display = 'none';
+    if (ssRaf) cancelAnimationFrame(ssRaf);
+    showTab('connect');
+  }
+
+  function animateScreensaver() {
+    if (!ssActive) return;
+    var clockEl = document.getElementById('ss-clock');
+    var labelEl = document.getElementById('ss-label');
+    var now = new Date();
+    var h = now.getHours() % 12 || 12;
+    var m = String(now.getMinutes()).padStart(2, '0');
+    var ampm = now.getHours() >= 12 ? ' PM' : ' AM';
+    clockEl.textContent = h + ':' + m + ampm;
+
+    /* Bounce */
+    var maxX = window.innerWidth - 280;
+    var maxY = window.innerHeight - 80;
+    ssX += ssDx;
+    ssY += ssDy;
+    if (ssX <= 0 || ssX >= maxX) ssDx = -ssDx;
+    if (ssY <= 0 || ssY >= maxY) ssDy = -ssDy;
+    ssX = Math.max(0, Math.min(ssX, maxX));
+    ssY = Math.max(0, Math.min(ssY, maxY));
+
+    clockEl.style.left = ssX + 'px';
+    clockEl.style.top = ssY + 'px';
+    labelEl.style.left = ssX + 'px';
+    labelEl.style.top = (ssY + 56) + 'px';
+
+    ssRaf = requestAnimationFrame(animateScreensaver);
+  }
+
+  if (isKiosk) {
+    document.addEventListener('touchstart', resetIdle);
+    document.addEventListener('click', resetIdle);
+    document.getElementById('screensaver').addEventListener('touchstart', function (e) {
+      e.preventDefault();
+      resetIdle();
+    });
+    document.getElementById('screensaver').addEventListener('click', function (e) {
+      e.preventDefault();
+      resetIdle();
+    });
+    resetIdle();
+  }
+</script>
+</body>
+</html>

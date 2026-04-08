@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>OpenTAK Map</title>
+<style>
+body{background:#0d1117;color:#f0f6fc;font-family:sans-serif;margin:0;overflow:hidden}
+.msg{display:flex;align-items:center;justify-content:center;height:100vh;font-size:24px}
+.side-btn{position:fixed;left:0;z-index:9999;width:56px;
+  background:rgba(13,17,23,0.7);border:none;cursor:pointer;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  transition:background 0.2s}
+.side-btn:hover,.side-btn:active{background:rgba(13,17,23,0.95)}
+.side-btn svg{width:24px;height:24px}
+.side-btn span{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em}
+#back-btn{top:0;height:50%;color:#f0f6fc}
+#loc-btn{bottom:0;height:50%;color:#22c55e}
+iframe{position:fixed;top:0;left:56px;width:calc(100vw - 56px);height:100vh;border:none}
+/* Location picker — fullscreen overlay */
+#loc-screen{display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:10000;
+  background:#0d1117;flex-direction:column}
+#loc-screen.visible{display:flex}
+#loc-bar{display:flex;align-items:center;gap:8px;padding:6px 12px;background:#161b22;
+  border-bottom:1px solid #30363d;flex-shrink:0}
+#loc-bar h3{margin:0;font-size:15px;white-space:nowrap}
+#pick-map{flex:1;touch-action:none}
+#loc-status{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+  font-size:14px;color:#888;background:rgba(22,27,34,0.9);padding:4px 16px;
+  border-radius:4px;z-index:10001;pointer-events:none}
+</style>
+<link rel="stylesheet" href="/kiosk-assets/leaflet.css"/>
+<script src="/kiosk-config.js"></script>
+<script src="/kiosk-assets/leaflet.js"></script>
+<script src="/kiosk-assets/protomaps-leaflet.js"></script>
+</head>
+<body>
+<div class="msg" id="status">Connecting to OpenTAK Server...</div>
+<button id="back-btn" class="side-btn" style="display:none" onclick="history.back()" title="Back">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="15 18 9 12 15 6"/>
+  </svg>
+  <span>Back</span>
+</button>
+<button id="loc-btn" class="side-btn" style="display:none" onclick="openLocPicker()" title="Set Node Location">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+  </svg>
+  <span>Location</span>
+</button>
+
+<div id="loc-screen">
+  <div id="loc-bar">
+    <button onclick="closeLocPicker()" style="background:none;border:none;color:#f0f6fc;font-size:22px;cursor:pointer;padding:0 4px">&times;</button>
+    <h3>Set Node Location</h3>
+    <span id="loc-coords" style="font-size:13px;color:#888;margin-left:auto"></span>
+    <button onclick="useGPS()" id="gps-btn" style="padding:6px 14px;background:#1f6feb;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px">GPS</button>
+    <button onclick="confirmLocation()" id="confirm-btn" disabled style="padding:6px 14px;background:#22c55e;color:#000;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:700">Set Marker</button>
+  </div>
+  <div id="pick-map"></div>
+  <div id="loc-status"></div>
+</div>
+
+<script>
+/* Fix Leaflet marker icon path for self-hosted assets */
+L.Icon.Default.imagePath = "/kiosk-assets/images/";
+
+var MARKER_UID = "1cec9ca6-0b35-415f-9fd6-5aaf43094c79";
+var authToken = "";
+var pickMap = null;
+var pickMarker = null;
+var pickedLat = null;
+var pickedLon = null;
+
+function getCookie(name) {
+  var match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
+  return match ? decodeURIComponent(match[2]) : "";
+}
+
+function isJSON(r) {
+  return (r.headers.get("content-type") || "").indexOf("application/json") !== -1;
+}
+
+function launchMap() {
+  document.getElementById("status").style.display = "none";
+  document.getElementById("back-btn").style.display = "flex";
+  document.getElementById("loc-btn").style.display = "flex";
+  var iframe = document.createElement("iframe");
+  iframe.src = "/map";
+  iframe.onload = function() {
+    try {
+      var doc = iframe.contentDocument;
+      var style = doc.createElement("style");
+      style.textContent = [
+        "nav, [class*=Navbar], [class*=navbar] { display:none !important; width:0 !important }",
+        "header, [class*=Header], [class*=header] { display:none !important; height:0 !important }",
+        "main, [class*=Main], [class*=main] { margin:0 !important; padding:0 !important; margin-inline-start:0 !important; width:100% !important }",
+        "[class*=AppShell] { --app-shell-navbar-width:0px !important }",
+        ".leaflet-container { width:100% !important; height:100vh !important }",
+        ".leaflet-control-layers { display:none !important }"
+      ].join("\n");
+      doc.head.appendChild(style);
+      setTimeout(function() { iframe.contentWindow.dispatchEvent(new Event("resize")); }, 300);
+      setTimeout(function() { iframe.contentWindow.dispatchEvent(new Event("resize")); }, 1000);
+    } catch(e) {}
+  };
+  document.body.appendChild(iframe);
+}
+
+function doLogin(callback) {
+  fetch("/api/login", {credentials: "same-origin"}).then(function(r) {
+    var xsrf = getCookie("XSRF-TOKEN");
+    if (!xsrf) { document.getElementById("status").textContent = "No CSRF token"; return; }
+    return fetch("/api/login?include_auth_token", {
+      method: "POST",
+      headers: {"Content-Type": "application/json", "X-XSRF-TOKEN": xsrf},
+      body: JSON.stringify({username: window.OTS_USER || "administrator", password: window.OTS_PASS || ""}),
+      credentials: "same-origin"
+    }).then(function(r) {
+      if (!isJSON(r)) return;
+      return r.json();
+    }).then(function(d) {
+      if (!d) return;
+      if (d.meta && d.meta.code === 200) {
+        authToken = d.response.user.authentication_token;
+        localStorage.setItem("loggedIn", "true");
+        localStorage.setItem("token", authToken);
+        localStorage.setItem("username", "administrator");
+        localStorage.setItem("administrator", "true");
+        localStorage.setItem("emailEnabled", "false");
+        localStorage.setItem("email", "");
+        if (callback) callback();
+      } else if (d.response && d.response.errors && d.response.errors[0] === "You can only access this endpoint when not logged in.") {
+        localStorage.setItem("loggedIn", "true");
+        localStorage.setItem("username", "administrator");
+        localStorage.setItem("administrator", "true");
+        localStorage.setItem("emailEnabled", "false");
+        localStorage.setItem("email", "");
+        if (callback) callback();
+      }
+    });
+  }).catch(function(e) { document.getElementById("status").textContent = "Error: " + e.message; });
+}
+
+/* --- Location Picker --- */
+/* Hide GPS button on HTTP — geolocation requires secure origin */
+var isSecure = location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1";
+
+function openLocPicker() {
+  if (!isSecure) { var gb = document.getElementById("gps-btn"); if (gb) gb.style.display = "none"; }
+  document.getElementById("loc-screen").classList.add("visible");
+  if (!pickMap) {
+    pickMap = L.map("pick-map", {tap: true, touchZoom: true, zoomControl: false, maxZoom: 22}).setView([28.54, -81.38], 10);
+    L.control.zoom({position: "bottomright"}).addTo(pickMap);
+    /* Offline PMTiles layer (dark theme) with OSM raster fallback */
+    if (typeof protomapsL !== "undefined") {
+      try {
+        protomapsL.leafletLayer({url: "/tiles/florida.pmtiles", flavor: "dark", attribution: "OSM"}).addTo(pickMap);
+      } catch(e) {
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {attribution: "OSM", maxZoom: 18, maxNativeZoom: 18}).addTo(pickMap);
+      }
+    } else {
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {attribution: "OSM", maxZoom: 18, maxNativeZoom: 18}).addTo(pickMap);
+    }
+    pickMap.on("click", function(e) {
+      pickedLat = e.latlng.lat;
+      pickedLon = e.latlng.lng;
+      if (pickMarker) pickMap.removeLayer(pickMarker);
+      pickMarker = L.marker(e.latlng).addTo(pickMap);
+      document.getElementById("loc-coords").textContent = pickedLat.toFixed(6) + ", " + pickedLon.toFixed(6);
+      document.getElementById("confirm-btn").disabled = false;
+    });
+  }
+  setTimeout(function() { pickMap.invalidateSize(); }, 200);
+}
+
+function closeLocPicker() {
+  document.getElementById("loc-screen").classList.remove("visible");
+}
+
+function useGPS() {
+  var st = document.getElementById("loc-status");
+  if (!navigator.geolocation) { st.textContent = "GPS not available on this device."; return; }
+  st.textContent = "Requesting GPS...";
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    pickedLat = pos.coords.latitude;
+    pickedLon = pos.coords.longitude;
+    if (pickMarker) pickMap.removeLayer(pickMarker);
+    pickMarker = L.marker([pickedLat, pickedLon]).addTo(pickMap);
+    pickMap.setView([pickedLat, pickedLon], 15);
+    document.getElementById("loc-coords").textContent = pickedLat.toFixed(6) + ", " + pickedLon.toFixed(6);
+    document.getElementById("confirm-btn").disabled = false;
+    st.textContent = "GPS position acquired.";
+  }, function(err) {
+    st.textContent = "GPS error: " + err.message + ". Tap the map instead.";
+  }, {enableHighAccuracy: true, timeout: 10000});
+}
+
+function confirmLocation() {
+  if (pickedLat === null) return;
+  var st = document.getElementById("loc-status");
+  st.textContent = "Setting marker...";
+  var payload = {uid: MARKER_UID, name: "Community Node", latitude: pickedLat, longitude: pickedLon, type: "a-f-G-E-S"};
+
+  function doPost() {
+    var xsrf = getCookie("XSRF-TOKEN");
+    var hdrs = {"Content-Type": "application/json", "Authentication-Token": authToken};
+    if (xsrf) hdrs["X-XSRF-TOKEN"] = xsrf;
+    fetch("/api/markers", {
+      method: "POST",
+      headers: hdrs,
+      body: JSON.stringify(payload),
+      credentials: "same-origin"
+    }).then(function(r) {
+      if (r.ok) {
+        st.innerHTML = '<span style="color:#22c55e;font-weight:700">Marker set at ' + pickedLat.toFixed(6) + ", " + pickedLon.toFixed(6) + "</span>";
+        document.getElementById("confirm-btn").disabled = true;
+        setTimeout(closeLocPicker, 2000);
+      } else {
+        r.text().then(function(t) { st.innerHTML = '<span style="color:#ef4444">Error: ' + t + "</span>"; });
+      }
+    }).catch(function(e) { st.innerHTML = '<span style="color:#ef4444">Failed: ' + e.message + "</span>"; });
+  }
+
+  if (authToken) { doPost(); return; }
+  fetch("/api/me", {credentials: "same-origin"}).then(function(r) {
+    if (r.ok && isJSON(r)) {
+      return r.json().then(function(d) {
+        if (d.response && d.response.authentication_token) authToken = d.response.authentication_token;
+        doPost();
+      });
+    }
+    doLogin(doPost);
+  }).catch(function() { doLogin(doPost); });
+}
+
+/* --- Boot --- */
+/* Always clear stale tokens and re-login to handle password changes */
+localStorage.clear();
+doLogin(launchMap);
+</script></body></html>

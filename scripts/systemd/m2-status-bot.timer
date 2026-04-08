@@ -1,0 +1,11 @@
+[Unit]
+Description=M2 Node Status Bot — runs every 12 hours
+Requires=m2-status-bot.service
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=12h
+Unit=m2-status-bot.service
+
+[Install]
+WantedBy=timers.target
