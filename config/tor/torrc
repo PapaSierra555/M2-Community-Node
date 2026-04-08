@@ -1,0 +1,57 @@
+  # /etc/tor/torrc
+  # Tor daemon configuration — Community Node Pi #1
+  #
+  # Tor routes traffic through a global network of volunteer relays using
+  # layered encryption (onion routing). Each relay only knows the previous
+  # and next hop — no single node knows both the origin and destination.
+  #
+  # In this build Tor provides v3 .onion hidden services — stable addresses
+  # that let community members reach Matrix, Element, and the community web
+  # page WITHOUT clearnet, DNS, or any open firewall ports.
+  #
+  # v3 .onion addresses are 56 characters long and cryptographically tied
+  # to an ed25519 key pair stored in the HiddenServiceDir folders.
+  # BACK UP /opt/community-node/data/tor/ — losing it means losing the
+  # .onion addresses permanently. There is no recovery.
+  #
+  # Retrieve addresses after first start:
+  #   docker exec tor cat /var/lib/tor/matrix_hidden_service/hostname
+  #   docker exec tor cat /var/lib/tor/element_hidden_service/hostname
+  #   docker exec tor cat /var/lib/tor/community_hidden_service/hostname
+
+  # SOCKS proxy — allows other containers or LAN clients to route traffic
+  # through Tor. 0.0.0.0 binds to all interfaces inside the container.
+  SocksPort 0.0.0.0:9050
+
+  # Where Tor stores keys, cached consensus, and hidden service key material.
+  # Mapped to ./data/tor on the host via Docker volume.
+  DataDirectory /var/lib/tor
+
+  # ── Matrix homeserver hidden service ─────────────────────────────────────────
+  # Users with Tor Browser can reach the Matrix API via this .onion address.
+  # Port 80 → nginx:80 (HTTP) — Tor's own encryption makes HTTP safe here.
+  # Port 8448 → conduit:6167 — direct federation port for other Matrix servers
+  # that want to federate with this node over Tor.
+  # HiddenServiceVersion 3 = v3 .onion (ed25519 keys, 56-char address).
+  HiddenServiceDir /var/lib/tor/matrix_hidden_service/
+  HiddenServicePort 80 nginx:80
+  HiddenServicePort 8448 conduit:6167
+  HiddenServiceVersion 3
+
+  # ── Element Web hidden service ────────────────────────────────────────────────
+  # Serves the Element Web client over Tor.
+  # Users open this .onion address in Tor Browser to get the full Matrix UI.
+  # Port 80 → nginx:8080 (Element Web via nginx proxy).
+  # Separate .onion from Matrix API so each service has its own stable address.
+  HiddenServiceDir /var/lib/tor/element_hidden_service/
+  HiddenServicePort 80 nginx:8080
+  HiddenServiceVersion 3
+
+  # ── Community Web hidden service ──────────────────────────────────────────────
+  # Serves the static community info page over Tor.
+  # Port 80 → nginx:8081 (community-web static files).
+  # Use this to publish .onion addresses, node info, and join instructions
+  # to people who already have Tor Browser but haven't joined Matrix yet.
+  HiddenServiceDir /var/lib/tor/community_hidden_service/
+  HiddenServicePort 80 nginx:8081
+  HiddenServiceVersion 3

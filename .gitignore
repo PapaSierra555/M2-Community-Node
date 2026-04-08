@@ -1,0 +1,50 @@
+# Instance config — filled values are local only (template is tracked)
+instance.conf
+!instance.conf.template
+
+# Secrets — filled credentials files (templates are tracked, actuals are not)
+M2_SECRETS.md
+M1_SECRETS.md
+*_SECRETS.md
+!*_SECRETS.template.md
+kiosk-config.js
+!kiosk-config.js.template
+
+# Conduit config — contains registration token (use conduit.template.toml as base)
+config/conduit/conduit.toml
+
+# Headscale config — contains API keys and pre-auth keys
+config/headscale/
+
+# Font files (local only — not tracked due to binary size)
+*.ttf
+*.otf
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Playwright MCP logs
+.playwright-mcp/
+
+# Screenshot artifacts (not documentation)
+# Add explicit exceptions with !filename.png for any PNG that should be tracked
+*.png
+!kiosk-assets/images/*.png
+!outreach/assets/*.png
+
+# Scratch/shopping research files
+amazon-*.md
+*-search.md
+*-results.md
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor artifacts
+*.swp
+*.swo
+*~

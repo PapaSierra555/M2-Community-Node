@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1280">
+  <title>Community Node — Kiosk</title>
+  <style>
+    /* Kiosk dashboard for GeeekPi 7.84" touchscreen — 1280x400 native resolution.
+       Designed for touch interaction. No scrolling. Everything visible at once.
+       v2.2.0 — UX audit: unified color system, type scale, touch targets, accessibility. */
+
+    :root {
+      /* Base grays — GitHub Dark */
+      --bg-primary: #0d1117;
+      --bg-surface: #161b22;
+      --bg-elevated: #1f2937;
+      --border: #21262d;
+      --text-primary: #f0f6fc;
+      --text-secondary: #8b949e;
+      --text-tertiary: #6e7681;
+
+      /* Status colors — Material Design */
+      --status-ok: #4caf50;
+      --status-warn: #ffb74d;
+      --status-error: #f44336;
+      --status-unknown: #4a5568;
+
+      /* Interactive accents */
+      --accent-blue: #3b82f6;
+      --accent-blue-soft: #64b5f6;
+      --accent-green: #22c55e;
+      --accent-red: #ef4444;
+      --accent-purple: #bc8cff;
+      --accent-amber: #ffb74d;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px;
+      font-weight: 500;
+      width: 1280px;
+      height: 400px;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      /* Brightness control — CSS filter, adjustable from Settings */
+      filter: brightness(var(--brightness, 1));
+    }
+
+    /* ── Tab bar — fixed top strip ─────────────────────────────────── */
+    .tab-bar {
+      display: flex;
+      height: 56px;
+      background: var(--bg-surface);
+      border-bottom: 2px solid var(--border);
+    }
+
+    .tab-bar button {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .tab-bar button:nth-child(1).active { color: var(--text-primary); background: var(--accent-blue); font-weight: 700; }
+    .tab-bar button:nth-child(2).active { color: var(--text-primary); background: var(--status-ok); font-weight: 700; }
+    .tab-bar button:nth-child(3).active { color: var(--text-primary); background: var(--accent-amber); font-weight: 700; }
+    .tab-bar button:nth-child(4).active { color: var(--text-primary); background: var(--bg-elevated); font-weight: 700; }
+
+    .tab-bar button:active { background: var(--border); }
+
+    /* ── Tab content panels ────────────────────────────────────────── */
+    .tab-panel {
+      display: none;
+      height: 344px; /* 400 - 56 tab bar */
+      padding: 10px 14px;
+    }
+
+    .tab-panel.active { display: flex; }
+
+    /* ── TAB 1: Status Dashboard ───────────────────────────────────── */
+    #tab-status { gap: 12px; }
+
+    /* Two-column service layout: comms left, tactical right */
+    .services-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto repeat(5, 1fr); /* header + 5 data rows; comms has 4, tactical has 5 */
+      gap: 4px;
+    }
+
+    .svc {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .svc .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot-green  { background: var(--status-ok); box-shadow: 0 0 4px #4caf5088; }
+    .dot-yellow { background: var(--status-warn); box-shadow: 0 0 4px #ffb74d88; }
+    .dot-red    { background: var(--status-error); box-shadow: 0 0 4px #f4433688; }
+    .dot-gray   { background: var(--status-unknown); }
+
+    .svc .name {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    .svc .detail {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-left: auto;
+      white-space: nowrap;
+    }
+
+    /* Right column: system vitals */
+    .vitals {
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .vital-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 4px 10px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 0;
+    }
+
+    .vital-card .label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      line-height: 1.1;
+    }
+
+    .vital-card .value {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-primary);
+      font-family: "SFMono-Regular", Consolas, monospace;
+      line-height: 1.2;
+    }
+
+    .vital-card .sub {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      line-height: 1.1;
+    }
+
+    /* Column headers */
+    .grid-header {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 4px 10px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+    }
+
+    .grid-header.comms {
+      color: var(--accent-blue-soft);
+      background: #1a3a6633;
+      border: 1px solid #1a3a6655;
+    }
+
+    .grid-header.tactical {
+      color: var(--accent-amber);
+      background: #4a3a1033;
+      border: 1px solid #4a3a1055;
+    }
+
+    /* Color-coded card accents */
+    .svc.comms    { border-left: 4px solid var(--accent-blue-soft); }
+    .svc.tactical { border-left: 4px solid var(--accent-amber); }
+
+    /* DDNS mismatch alarm — flashing border */
+    .vital-card.alarm {
+      border-color: var(--status-error);
+      animation: pulse-border 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse-border {
+      0%, 100% { border-color: var(--status-error); }
+      50% { border-color: #f4433600; }
+    }
+
+    /* ── TAB 2: Quick Actions ──────────────────────────────────────── */
+    #tab-actions {
+      gap: 8px;
+      flex-wrap: wrap;
+      align-content: flex-start;
+    }
+
+    .action-btn {
+      width: calc(20% - 7px);
+      height: 164px;
+      background: var(--bg-surface);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.1s ease;
+      color: var(--text-primary);
+      border-left: 3px solid var(--border);
+    }
+
+    .action-btn:active {
+      transform: scale(0.98);
+      background: var(--bg-elevated);
+    }
+
+    .action-btn .icon {
+      font-size: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .action-btn .icon svg { width: 36px; height: 36px; }
+    .action-btn .label { font-size: 16px; font-weight: 700; text-align: center; }
+
+    /* ── Semantic card colors — ISA-101 / Material Design hybrid ──── */
+    .action-btn.clr-green { border-left-color: var(--accent-green); }
+    .action-btn.clr-green .icon svg { stroke: var(--accent-green); }
+    .action-btn.clr-green:active { border-color: var(--accent-green); box-shadow: 0 0 12px rgba(34, 197, 94, 0.25); }
+
+    .action-btn.clr-blue { border-left-color: var(--accent-blue); }
+    .action-btn.clr-blue .icon svg { stroke: var(--accent-blue); }
+    .action-btn.clr-blue:active { border-color: var(--accent-blue); box-shadow: 0 0 12px rgba(59, 130, 246, 0.25); }
+
+    .action-btn.clr-slate { border-left-color: #64748b; }
+    .action-btn.clr-slate .icon svg { stroke: #64748b; }
+    .action-btn.clr-slate:active { border-color: #64748b; box-shadow: 0 0 12px rgba(100, 116, 139, 0.25); }
+
+    .action-btn.clr-red { border-left-color: var(--accent-red); }
+    .action-btn.clr-red .icon svg { stroke: var(--accent-red); }
+    .action-btn.clr-red .label { color: var(--accent-red); }
+    .action-btn.clr-red:active { border-color: var(--accent-red); box-shadow: 0 0 12px rgba(239, 68, 68, 0.25); }
+
+    /* Toggle active state for Stay Awake */
+    .action-btn.toggled {
+      border-color: var(--accent-green);
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.2);
+    }
+
+    /* ── TAB 3: Network Info ───────────────────────────────────────── */
+    #tab-network { gap: 10px; }
+
+    .info-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .info-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+    }
+
+    .info-card .label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .info-card .value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      font-family: "SFMono-Regular", Consolas, monospace;
+    }
+
+    .info-card .sub {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    /* Network tab inline value sizes */
+    .info-card .value.val-sm { font-size: 16px; }
+    .info-card .value.val-xs { font-size: 14px; }
+
+    /* Tor QR codes on Network tab */
+    .tor-qr-row {
+      display: flex;
+      gap: 30px;
+      justify-content: center;
+      flex: 1;
+    }
+
+    .tor-qr-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .tor-qr-item img {
+      width: 120px;
+      height: 120px;
+      background: #fff;
+      border-radius: 6px;
+      padding: 6px;
+    }
+
+    .tor-qr-item .qr-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent-purple);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Clock in tab bar ──────────────────────────────────────────── */
+    .clock {
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      font-size: 20px;
+      font-weight: 700;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    /* ── TAB 4: Settings ─────────────────────────────────────────── */
+    .setting-btn {
+      background: var(--bg-surface);
+      border: 2px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      font-size: 16px;
+      font-weight: 700;
+      padding: 8px 18px;
+      min-height: 44px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .setting-btn:active { background: var(--border); }
+
+    .setting-btn.active {
+      border-color: var(--accent-blue-soft);
+      color: var(--accent-blue-soft);
+      background: #64b5f615;
+    }
+
+    .setting-btn.danger {
+      border-color: #ef444466;
+      color: var(--accent-red);
+    }
+
+    .setting-btn.danger:active {
+      background: #ef444422;
+    }
+
+    /* Brightness slider */
+    .brightness-slider {
+      width: 100%;
+      margin-top: 6px;
+      accent-color: var(--accent-blue-soft);
+      height: 24px;
+      cursor: pointer;
+    }
+
+    .brightness-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent-blue-soft);
+      font-family: "SFMono-Regular", Consolas, monospace;
+    }
+
+    /* ── Modal overlay for action cards ──────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 1280px;
+      height: 400px;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.visible { display: flex; }
+
+    .modal-card {
+      background: var(--bg-surface);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 28px;
+      max-width: 1050px;
+      max-height: 380px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      position: relative;
+    }
+
+    .modal-card h3 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent-blue-soft);
+      margin-bottom: 8px;
+    }
+
+    .modal-card h3 .subtitle {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-left: 8px;
+    }
+
+    .modal-card .modal-row {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    .modal-card .modal-info { flex: 1; }
+
+    .modal-card .modal-info p {
+      font-size: 16px;
+      color: #d0d0d0;
+      line-height: 1.35;
+      margin-bottom: 4px;
+    }
+
+    .modal-card .modal-info code {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 16px;
+      color: var(--accent-blue-soft);
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      display: inline-block;
+      margin: 2px 0;
+      word-break: break-all;
+    }
+
+    .modal-card .qr-img {
+      width: 160px;
+      height: 160px;
+      background: #fff;
+      border-radius: 8px;
+      padding: 8px;
+      flex-shrink: 0;
+    }
+
+    .modal-card .qr-img img { width: 100%; height: 100%; }
+
+    /* Tor QR modal — spaced for easy phone scanning */
+    .modal-card .qr-img.sm {
+      width: 140px;
+      height: 140px;
+      padding: 10px;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 10px;
+      right: 14px;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 28px;
+      cursor: pointer;
+      line-height: 1;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+    }
+
+    .modal-close:active { color: var(--text-primary); background: var(--border); }
+
+    .modal-hint {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-top: 6px;
+    }
+
+    /* ── Type scale utility classes for inline overrides ──────────── */
+    .ts-caption { font-size: 12px; }
+    .ts-detail { font-size: 14px; }
+    .ts-body { font-size: 16px; }
+    .ts-heading { font-size: 20px; }
+
+    /* ── Color utility classes for inline overrides ───────────────── */
+    .c-tertiary { color: var(--text-tertiary); }
+    .c-secondary { color: var(--text-secondary); }
+    .c-primary { color: var(--text-primary); }
+  </style>
+</head>
+<body>
+
+<!-- Tab navigation — large touch targets across full width -->
+<div class="tab-bar">
+  <button class="active" onclick="showTab('status')">Status</button>
+  <button onclick="showTab('actions')">Actions</button>
+  <button onclick="showTab('network')">Network</button>
+  <button onclick="showTab('settings')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</button>
+  <div class="clock">
+    <span id="clock">--:--:--</span>
+  </div>
+</div>
+
+<!-- TAB 1: Service Status Dashboard — 10 services, 2 columns (5 comms | 5 tactical) -->
+<div id="tab-status" class="tab-panel active">
+  <div class="services-grid">
+    <!-- Column headers -->
+    <div class="grid-header comms">Pi #1 — comms (192.168.8.10)</div>
+    <div class="grid-header tactical">Pi #2 — tactical (192.168.8.20)</div>
+
+    <!-- Row 1 -->
+    <div class="svc comms" id="svc-element">
+      <span class="dot dot-gray"></span>
+      <span class="name">Element Web</span>
+      <span class="detail">Chat</span>
+    </div>
+    <div class="svc tactical" id="svc-monerod">
+      <span class="dot dot-gray"></span>
+      <span class="name">Monerod</span>
+      <span class="detail" id="monero-height">&mdash;</span>
+    </div>
+
+    <!-- Row 2 -->
+    <div class="svc comms" id="svc-nginx">
+      <span class="dot dot-gray"></span>
+      <span class="name">Nginx</span>
+      <span class="detail">Proxy</span>
+    </div>
+    <div class="svc tactical" id="svc-opentakserver">
+      <span class="dot dot-gray"></span>
+      <span class="name">OpenTAK</span>
+      <span class="detail">ATAK</span>
+    </div>
+
+    <!-- Row 3 -->
+    <div class="svc comms" id="svc-cloudflared">
+      <span class="dot dot-gray"></span>
+      <span class="name">Cloudflared</span>
+      <span class="detail">Tunnel</span>
+    </div>
+    <div class="svc tactical" id="svc-headscale">
+      <span class="dot dot-gray"></span>
+      <span class="name">Headscale</span>
+      <span class="detail" id="headscale-peers">VPN</span>
+    </div>
+
+    <!-- Row 4 -->
+    <div class="svc comms" id="svc-tor">
+      <span class="dot dot-gray"></span>
+      <span class="name">Tor</span>
+      <span class="detail">Hidden Svc</span>
+    </div>
+    <div class="svc tactical" id="svc-mosquitto">
+      <span class="dot dot-gray"></span>
+      <span class="name">Mosquitto</span>
+      <span class="detail">MQTT</span>
+    </div>
+
+    <!-- Row 5 -->
+    <div class="svc comms" id="svc-conduit">
+      <span class="dot dot-gray"></span>
+      <span class="name">Conduit</span>
+      <span class="detail">Matrix API</span>
+    </div>
+    <div class="svc tactical" id="svc-reticulum">
+      <span class="dot dot-gray"></span>
+      <span class="name">Reticulum</span>
+      <span class="detail">Mesh</span>
+    </div>
+  </div>
+
+  <!-- Right column: system vitals — 7 cards -->
+  <div class="vitals">
+    <div class="vital-card">
+      <span class="label">Uptime</span>
+      <span class="value" id="uptime">&mdash;</span>
+    </div>
+    <div class="vital-card" id="ddns-card">
+      <span class="label">Public IP</span>
+      <span class="value val-sm" id="public-ip">&mdash;</span>
+      <span class="sub" id="ddns-status">DDNS: checking...</span>
+    </div>
+    <div class="vital-card" id="monero-vital">
+      <span class="label">Monero Sync</span>
+      <span class="value" id="monero-sync">&mdash;</span>
+      <span class="sub" id="monero-height-sub">&mdash;</span>
+    </div>
+    <div class="vital-card">
+      <span class="label">Comms (Pi 1)</span>
+      <span class="value val-sm" id="pi1-temp">&mdash;</span>
+      <span class="sub"><span id="pi1-ram">RAM: &mdash;</span> &bull; <span id="pi1-disk">&mdash;</span></span>
+    </div>
+    <div class="vital-card">
+      <span class="label">Tactical (Pi 2)</span>
+      <span class="value val-sm" id="pi2-temp">&mdash;</span>
+      <span class="sub"><span id="pi2-ram">RAM: &mdash;</span> &bull; <span id="pi2-disk">&mdash;</span></span>
+    </div>
+    <div class="vital-card">
+      <span class="label">Last Updated</span>
+      <span class="value val-sm" id="last-updated">&mdash;</span>
+      <span class="sub" id="staleness-warn" style="color:var(--status-ok);">status.json pipeline</span>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 2: Quick Actions — 10 buttons, 2 rows -->
+<div id="tab-actions" class="tab-panel">
+  <!-- Row 1: QR codes and visitor-facing -->
+  <div class="action-btn clr-blue" onclick="actionShowQR()">
+    <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1"/></svg></span>
+    <span class="label">WiFi QR</span>
+  </div>
+  <div class="action-btn clr-blue" onclick="actionShowElement()">
+    <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+    <span class="label">Element QR</span>
+  </div>
+  <div class="action-btn clr-blue" onclick="actionShowTor()">
+    <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
+    <span class="label">Tor QR</span>
+  </div>
+  <div class="action-btn clr-green" onclick="actionShowMonero()">
+    <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v12"/><path d="M8 10l4-4 4 4"/><line x1="6" y1="18" x2="10" y2="18"/><line x1="14" y1="18" x2="18" y2="18"/></svg></span>
+    <span class="label">Monero Node</span>
+  </div>
+  <div class="action-btn clr-green" onclick="actionShowMesh()">
+    <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+    <span class="label">Radio / Mesh</span>
+  </div>
+
+  <!-- Row 2: operator actions -->
+  <div class="action-btn clr-blue" onclick="actionShowATAK()">
+    <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg></span>
+    <span class="label">ATAK Info</span>
+  </div>
+  <div class="action-btn clr-blue" onclick="actionViewCommunity()">
+    <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></span>
+    <span class="label">Community Page</span>
+  </div>
+  <div class="action-btn clr-green" onclick="actionKeepAwake(event)">
+    <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></span>
+    <span class="label">Stay Awake</span>
+  </div>
+  <div class="action-btn clr-blue" onclick="actionViewMap()">
+    <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></span>
+    <span class="label">OpenTAK Map</span>
+  </div>
+  <div class="action-btn clr-slate" onclick="actionScreenOff()">
+    <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></span>
+    <span class="label">Screen Off</span>
+  </div>
+</div>
+
+<!-- TAB 3: Network Info — grouped by use case -->
+<div id="tab-network" class="tab-panel">
+  <!-- Col 1: Local Network -->
+  <div class="info-col">
+    <div class="info-card">
+      <span class="label">WiFi SSID</span>
+      <span class="value">CommunityNode</span>
+    </div>
+    <div class="info-card">
+      <span class="label">Pi #1 — comms</span>
+      <span class="value">192.168.8.10</span>
+    </div>
+    <div class="info-card">
+      <span class="label">Pi #2 — tactical</span>
+      <span class="value">192.168.8.20</span>
+    </div>
+    <div class="info-card">
+      <span class="label">Gateway (GL.iNet)</span>
+      <span class="value">192.168.8.1</span>
+    </div>
+  </div>
+
+  <!-- Col 2: Services -->
+  <div class="info-col">
+    <div class="info-card">
+      <span class="label">Element (Clearnet)</span>
+      <span class="value val-xs">element.yourdomain.com</span>
+    </div>
+    <div class="info-card">
+      <span class="label">Monero RPC (restricted)</span>
+      <span class="value val-sm">192.168.8.20:18089</span>
+    </div>
+    <div class="info-card">
+      <span class="label">ATAK CoT (TCP / SSL)</span>
+      <span class="value val-sm">:8088 / :8089</span>
+    </div>
+    <div class="info-card">
+      <span class="label">LoRa / Meshtastic</span>
+      <span class="value val-sm">915 MHz Ch Default</span>
+    </div>
+  </div>
+
+  <!-- Col 3: Remote Access -->
+  <div class="info-col">
+    <div class="info-card">
+      <span class="label">Headscale URL</span>
+      <span class="value val-xs">m2vpn.yourdomain.com</span>
+    </div>
+    <div class="info-card">
+      <span class="label">Auth Key Expires</span>
+      <span class="value" style="color:var(--accent-amber);" id="auth-key-date">2026-06-18</span>
+      <span class="sub" id="auth-key-countdown"></span>
+    </div>
+    <div class="info-card">
+      <span class="label">Tailscale — comms</span>
+      <span class="value val-sm c-tertiary">100.64.1.2</span>
+    </div>
+    <div class="info-card">
+      <span class="label">Tailscale — tactical</span>
+      <span class="value val-sm c-tertiary">100.64.1.1</span>
+    </div>
+  </div>
+
+  <!-- Col 4: Tor Access — QR codes -->
+  <div class="info-col" style="align-items:center;">
+    <div class="info-card" style="text-align:center;width:100%;">
+      <span class="label" style="color:var(--accent-purple);">Tor Hidden Services</span>
+      <span class="sub">Scan with Tor Browser</span>
+    </div>
+    <div class="tor-qr-row">
+      <div class="tor-qr-item" onclick="actionShowTor()" style="cursor:pointer;">
+        <img src="qr-tor-element.svg?v=2" alt="Tor Element QR">
+        <span class="qr-label">Element</span>
+      </div>
+      <div class="tor-qr-item" onclick="actionShowTor()" style="cursor:pointer;">
+        <img src="qr-tor-community.svg?v=2" alt="Tor Community QR">
+        <span class="qr-label">Community</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 4: Settings -->
+<div id="tab-settings" class="tab-panel">
+  <div class="info-col">
+    <div class="info-card">
+      <span class="label">Time Format</span>
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <button class="setting-btn" id="btn-12h" onclick="setTimeFormat('12h')">12-Hour</button>
+        <button class="setting-btn" id="btn-24h" onclick="setTimeFormat('24h')">24-Hour</button>
+      </div>
+    </div>
+    <div class="info-card">
+      <span class="label">Screen Timeout</span>
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <button class="setting-btn" id="btn-5m" onclick="setIdleTimeout(5)">5 min</button>
+        <button class="setting-btn" id="btn-10m" onclick="setIdleTimeout(10)">10 min</button>
+        <button class="setting-btn" id="btn-30m" onclick="setIdleTimeout(30)">30 min</button>
+        <button class="setting-btn" id="btn-never" onclick="setIdleTimeout(0)">Never</button>
+      </div>
+    </div>
+    <div class="info-card">
+      <span class="label">Status Refresh Interval</span>
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <button class="setting-btn" id="btn-15s" onclick="setRefreshInterval(15)">15s</button>
+        <button class="setting-btn" id="btn-30s" onclick="setRefreshInterval(30)">30s</button>
+        <button class="setting-btn" id="btn-60s" onclick="setRefreshInterval(60)">60s</button>
+      </div>
+    </div>
+  </div>
+  <div class="info-col">
+    <div class="info-card">
+      <span class="label">Screen Brightness</span>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+        <span class="ts-detail c-secondary">Low</span>
+        <input type="range" class="brightness-slider" id="brightness-slider" min="40" max="100" value="100" oninput="setBrightness(this.value)">
+        <span class="ts-detail c-secondary">Full</span>
+        <span class="brightness-value" id="brightness-val">100%</span>
+      </div>
+    </div>
+    <div class="info-card">
+      <span class="label">Timezone</span>
+      <span class="value val-sm" id="current-tz">&mdash;</span>
+    </div>
+    <div class="info-card">
+      <span class="label">Kiosk IP</span>
+      <span class="value val-sm" id="kiosk-ip">&mdash;</span>
+    </div>
+  </div>
+  <div class="info-col">
+    <div class="info-card">
+      <span class="label">Kiosk Version</span>
+      <span class="value val-sm">2.2.0 &mdash; 2026-03-11</span>
+    </div>
+    <div class="info-card">
+      <span class="label">Node Operator</span>
+      <span class="value val-sm">yourdomain.com</span>
+    </div>
+    <div class="info-card">
+      <span class="label">Reset</span>
+      <div style="margin-top:6px;">
+        <button class="setting-btn danger" onclick="resetDefaults()">Reset All Settings</button>
+      </div>
+    </div>
+    <div class="info-card" style="flex:1;">
+      <span class="sub" style="font-size:14px;line-height:1.4;">Settings on this page affect kiosk display only. They do not change hardware or software on the community node.</span>
+    </div>
+  </div>
+</div>
+
+<!-- Modal overlay — replaces browser alert() for all action cards -->
+<div class="modal-overlay" id="modal" onclick="closeModal(event)">
+  <div class="modal-card" id="modalCard">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <div id="modalContent"></div>
+    <div class="modal-hint">Tap outside to close</div>
+  </div>
+</div>
+
+<script>
+  /* ── Modal system ───────────────────────────────────────────────── */
+  function showModal(html) {
+    document.getElementById('modalContent').innerHTML = html;
+    document.getElementById('modal').classList.add('visible');
+  }
+
+  function closeModal(e) {
+    if (!e || e.target === document.getElementById('modal') || e.target.classList.contains('modal-close')) {
+      document.getElementById('modal').classList.remove('visible');
+    }
+  }
+
+  /* ── Tab switching ────────────────────────────────────────────────── */
+  function showTab(name) {
+    document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+    document.querySelectorAll('.tab-bar button').forEach(function (b) { b.classList.remove('active'); });
+    document.getElementById('tab-' + name).classList.add('active');
+    var tabs = ['status', 'actions', 'network', 'settings'];
+    var idx = tabs.indexOf(name);
+    if (idx >= 0) document.querySelectorAll('.tab-bar button')[idx].classList.add('active');
+  }
+
+  /* ── Settings persistence via localStorage ────────────────────────── */
+  var timeFormat = localStorage.getItem('timeFormat') || '12h';
+  var idleMinutes = parseInt(localStorage.getItem('idleMinutes') || '10');
+  var refreshSec = parseInt(localStorage.getItem('refreshSec') || '30');
+  var brightnessVal = parseInt(localStorage.getItem('brightness') || '100');
+
+  function setTimeFormat(fmt) {
+    timeFormat = fmt;
+    localStorage.setItem('timeFormat', fmt);
+    updateClock();
+    highlightSettings();
+  }
+
+  function setIdleTimeout(mins) {
+    idleMinutes = mins;
+    localStorage.setItem('idleMinutes', String(mins));
+    IDLE_MS = mins > 0 ? mins * 60 * 1000 : 0;
+    resetIdle();
+    highlightSettings();
+  }
+
+  function setRefreshInterval(sec) {
+    refreshSec = sec;
+    localStorage.setItem('refreshSec', String(sec));
+    clearInterval(statusInterval);
+    statusInterval = setInterval(fetchStatus, sec * 1000);
+    highlightSettings();
+  }
+
+  function setBrightness(val) {
+    brightnessVal = parseInt(val);
+    localStorage.setItem('brightness', String(brightnessVal));
+    document.body.style.setProperty('--brightness', (brightnessVal / 100).toFixed(2));
+    document.getElementById('brightness-val').textContent = brightnessVal + '%';
+  }
+
+  function resetDefaults() {
+    localStorage.clear();
+    window.location.reload();
+  }
+
+  function highlightSettings() {
+    document.querySelectorAll('.setting-btn').forEach(function (b) { b.classList.remove('active'); });
+    document.getElementById('btn-' + timeFormat).classList.add('active');
+    var timeoutBtn = idleMinutes === 0 ? 'btn-never' : 'btn-' + idleMinutes + 'm';
+    var el = document.getElementById(timeoutBtn);
+    if (el) el.classList.add('active');
+    var refBtn = document.getElementById('btn-' + refreshSec + 's');
+    if (refBtn) refBtn.classList.add('active');
+    document.getElementById('current-tz').textContent = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    /* Brightness slider */
+    document.getElementById('brightness-slider').value = brightnessVal;
+    document.getElementById('brightness-val').textContent = brightnessVal + '%';
+    document.body.style.setProperty('--brightness', (brightnessVal / 100).toFixed(2));
+  }
+
+  /* ── Auth key countdown ──────────────────────────────────────────── */
+  function updateAuthCountdown() {
+    var expiry = new Date('2026-06-18T00:00:00');
+    var now = new Date();
+    var days = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+    var el = document.getElementById('auth-key-countdown');
+    if (days > 30) {
+      el.textContent = days + ' days remaining';
+      el.style.color = '#4caf50';
+    } else if (days > 7) {
+      el.textContent = days + ' days remaining';
+      el.style.color = '#ffb74d';
+    } else if (days > 0) {
+      el.textContent = days + ' days — ROTATE SOON';
+      el.style.color = '#f44336';
+    } else {
+      el.textContent = 'EXPIRED — rotate now';
+      el.style.color = '#f44336';
+    }
+  }
+
+  /* ── Clock ────────────────────────────────────────────────────────── */
+  function updateClock() {
+    var now = new Date();
+    var h = now.getHours();
+    var m = String(now.getMinutes()).padStart(2, '0');
+    var s = String(now.getSeconds()).padStart(2, '0');
+    if (timeFormat === '12h') {
+      var ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      document.getElementById('clock').textContent = h + ':' + m + ':' + s + ' ' + ampm;
+    } else {
+      document.getElementById('clock').textContent = String(h).padStart(2, '0') + ':' + m + ':' + s;
+    }
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  /* ── Status polling (fetches /status.json every N seconds) ──────── */
+  var generatedAt = null; /* Unix timestamp from generate-status.py */
+
+  /* Service detail labels — base text before status suffix */
+  var svcDetailLabels = {
+    'svc-element': 'Chat',
+    'svc-nginx': 'Proxy',
+    'svc-cloudflared': 'Tunnel',
+    'svc-tor': 'Hidden Svc',
+    'svc-conduit': 'Matrix API',
+    'svc-monerod': null, /* dynamic — handled separately */
+    'svc-opentakserver': 'ATAK',
+    'svc-headscale': null, /* dynamic — handled separately */
+    'svc-mosquitto': 'MQTT',
+    'svc-reticulum': 'Mesh'
+  };
+
+  function fetchStatus() {
+    fetch('/status.json', {cache: 'no-store'})
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        /* Track data age from the server-side timestamp, not fetch time */
+        if (data.generated_at) generatedAt = data.generated_at;
+
+        /* Service health dots + accessible status text */
+        if (data.services) {
+          Object.keys(data.services).forEach(function (svc) {
+            var el = document.getElementById('svc-' + svc);
+            if (!el) return;
+            var dot = el.querySelector('.dot');
+            var isUp = data.services[svc] === 'up';
+            dot.className = 'dot ' + (isUp ? 'dot-green' : 'dot-red');
+            /* Append status text to detail for non-color accessibility */
+            var baseLabel = svcDetailLabels['svc-' + svc];
+            if (baseLabel) {
+              var detailEl = el.querySelector('.detail');
+              detailEl.textContent = baseLabel + ' \u00b7 ' + (isUp ? 'UP' : 'DOWN');
+            }
+          });
+        }
+
+        /* Vitals */
+        if (data.uptime) document.getElementById('uptime').textContent = data.uptime;
+
+        if (data.public_ip) document.getElementById('public-ip').textContent = data.public_ip;
+        if (data.ddns_match !== undefined) {
+          var ddnsEl = document.getElementById('ddns-status');
+          var ddnsCard = document.getElementById('ddns-card');
+          ddnsEl.textContent = data.ddns_match ? 'DDNS: matched' : 'DDNS: MISMATCH';
+          ddnsEl.style.color = data.ddns_match ? '#4caf50' : '#f44336';
+          if (data.ddns_match) { ddnsCard.classList.remove('alarm'); }
+          else { ddnsCard.classList.add('alarm'); }
+        }
+
+        /* Monero — context-aware: show % during sync, "Synced" at 100% */
+        if (data.monero_sync !== undefined) {
+          var syncPct = parseFloat(data.monero_sync);
+          if (syncPct >= 99.9) {
+            document.getElementById('monero-sync').textContent = 'Synced';
+            document.getElementById('monero-sync').style.color = '#4caf50';
+          } else {
+            document.getElementById('monero-sync').textContent = data.monero_sync + '%';
+            document.getElementById('monero-sync').style.color = '#ffb74d';
+          }
+        }
+        if (data.monero_height !== undefined) {
+          document.getElementById('monero-height-sub').textContent = 'Height: ' + data.monero_height;
+        }
+
+        /* Headscale peer count */
+        if (data.headscale_peers !== undefined) {
+          var peersEl = document.getElementById('headscale-peers');
+          peersEl.textContent = data.headscale_peers > 0 ? data.headscale_peers + ' peers' : 'VPN';
+        }
+
+        /* Pi #1 (comms) vitals */
+        if (data.pi1) {
+          applyTempColor('pi1-temp', data.pi1.cpu_temp);
+          document.getElementById('pi1-ram').textContent = 'RAM: ' + (data.pi1.ram_usage || '\u2014');
+          var pi1DiskStr = data.pi1.disk_usage || '\u2014';
+          document.getElementById('pi1-disk').textContent = 'Disk: ' + pi1DiskStr;
+        }
+        /* Backwards compat: flat fields from old generate-status.py */
+        if (!data.pi1 && data.cpu_temp !== undefined) {
+          applyTempColor('pi1-temp', data.cpu_temp);
+          document.getElementById('pi1-ram').textContent = 'RAM: ' + (data.ram_usage || '\u2014');
+          document.getElementById('pi1-disk').textContent = 'Disk: ' + (data.disk_usage || '\u2014');
+        }
+
+        /* Pi #2 (tactical) vitals */
+        if (data.pi2) {
+          applyTempColor('pi2-temp', data.pi2.cpu_temp);
+          document.getElementById('pi2-ram').textContent = 'RAM: ' + (data.pi2.ram_usage || '\u2014');
+          var pi2DiskStr = data.pi2.disk_usage || '\u2014';
+          document.getElementById('pi2-disk').textContent = 'Disk: ' + pi2DiskStr;
+        }
+
+        updateStaleness();
+      })
+      .catch(function () {
+        updateStaleness();
+      });
+  }
+
+  /* Apply temperature color coding to a given element */
+  function applyTempColor(elId, tempStr) {
+    var el = document.getElementById(elId);
+    if (!el || !tempStr) { el.textContent = '\u2014'; return; }
+    el.textContent = tempStr;
+    var tempC = parseFloat(tempStr);
+    if (tempC > 75) el.style.color = '#f44336';
+    else if (tempC > 65) el.style.color = '#ffb74d';
+    else el.style.color = '#4caf50';
+  }
+
+  /* Show how old the data actually is — uses server-side generated_at timestamp.
+     This catches stale cron output even if the browser keeps fetching the same file. */
+  function updateStaleness() {
+    var el = document.getElementById('last-updated');
+    var warn = document.getElementById('staleness-warn');
+    if (!generatedAt) {
+      el.textContent = 'No data';
+      warn.textContent = 'status.json not loaded';
+      warn.style.color = '#f44336';
+      return;
+    }
+    var nowSec = Math.round(Date.now() / 1000);
+    var ageSec = nowSec - generatedAt;
+    if (ageSec < 0) ageSec = 0; /* clock skew guard */
+    if (ageSec < 90) {
+      el.textContent = ageSec + 's ago';
+      warn.textContent = 'pipeline healthy';
+      warn.style.color = '#4caf50';
+    } else if (ageSec < 300) {
+      el.textContent = Math.round(ageSec / 60) + 'm ago';
+      warn.textContent = 'slightly delayed';
+      warn.style.color = '#ffb74d';
+    } else {
+      el.textContent = Math.round(ageSec / 60) + 'm ago';
+      warn.textContent = 'STALE \u2014 check cron';
+      warn.style.color = '#f44336';
+    }
+  }
+
+  var statusInterval = setInterval(fetchStatus, refreshSec * 1000);
+  fetchStatus();
+  /* Update staleness display every 5 seconds even between fetches */
+  setInterval(updateStaleness, 5000);
+
+  /* ── Action handlers ──────────────────────────────────────────────── */
+  var keepAwake = false;
+
+  function actionViewCommunity() {
+    /* Use IP, not DNS hostname — kiosk runs on the Pi itself, whose resolver
+       may not point to the GL.iNet dnsmasq where 'community' is defined. */
+    window.location.href = 'http://192.168.8.10:8081/?from=kiosk';
+  }
+
+  function actionViewMap() {
+    /* OTS web UI with live Leaflet map — runs on tactical Pi.
+       kiosk-map.html auto-logs in via API then redirects to the map.
+       No keyboard needed — credentials handled by the bridge page. */
+    window.location.href = 'http://192.168.8.20:8080/kiosk-map.html';
+  }
+
+  function actionScreenOff() {
+    window.location.href = '/screensaver.html';
+  }
+
+  function actionKeepAwake(e) {
+    keepAwake = !keepAwake;
+    var btn = e ? e.currentTarget : document.querySelector('.action-btn[onclick*="KeepAwake"]');
+    if (keepAwake) {
+      btn.classList.add('toggled');
+      btn.querySelector('.label').textContent = 'Awake ON';
+    } else {
+      btn.classList.remove('toggled');
+      btn.querySelector('.label').textContent = 'Stay Awake';
+    }
+    resetIdle();
+  }
+
+  function actionShowQR() {
+    showModal('<h3>WiFi \u2014 CommunityNode</h3>' +
+      '<div class="modal-row">' +
+        '<div class="qr-img"><img src="qr-wifi.svg?v=2" alt="WiFi QR"></div>' +
+        '<div class="modal-info">' +
+          '<p>Scan to connect automatically</p>' +
+          '<p>SSID: <code>CommunityNode</code></p>' +
+          '<p>Password is encoded in the QR code</p>' +
+          '<p>Band: 5 GHz &bull; Security: WPA2</p>' +
+          '<p class="ts-caption c-tertiary" style="margin-top:8px;">Disable any VPN before connecting. VPNs block local DNS and may prevent access to node services.</p>' +
+        '</div>' +
+      '</div>');
+  }
+
+  function actionShowElement() {
+    showModal('<h3 style="text-align:center;">Element Web \u2014 Encrypted Chat</h3>' +
+      '<div style="display:flex;align-items:center;gap:20px;justify-content:center;">' +
+        '<div style="text-align:center;width:180px;flex-shrink:0;">' +
+          '<div class="qr-img" style="margin:0 auto;"><img src="qr-element-lan.svg?v=2" alt="Element LAN QR"></div>' +
+          '<p class="ts-detail" style="color:var(--accent-green);font-weight:700;margin-top:6px;">ON WIFI (LAN)</p>' +
+          '<code class="ts-caption">community:8080</code>' +
+        '</div>' +
+        '<div style="width:1px;height:200px;background:var(--border);flex-shrink:0;"></div>' +
+        '<div style="text-align:center;max-width:140px;">' +
+          '<p class="ts-detail" style="color:var(--text-primary);margin-bottom:8px;">Scan the QR code for your connection type</p>' +
+          '<p class="ts-caption c-tertiary">Ask the node operator for a registration token</p>' +
+        '</div>' +
+        '<div style="width:1px;height:200px;background:var(--border);flex-shrink:0;"></div>' +
+        '<div style="text-align:center;width:180px;flex-shrink:0;">' +
+          '<div class="qr-img" style="margin:0 auto;"><img src="qr-element-clearnet.svg?v=2" alt="Element Clearnet QR"></div>' +
+          '<p class="ts-caption" style="color:var(--accent-blue);font-weight:700;margin-top:6px;">FROM ANYWHERE<br>(CLEARNET)</p>' +
+          '<code class="ts-caption">element.yourdomain.com</code>' +
+        '</div>' +
+      '</div>');
+  }
+
+  function actionShowMonero() {
+    showModal(
+      '<h3>Monero Node <span class="subtitle">\u2014 Private Blockchain Access</span></h3>' +
+      '<div class="modal-info">' +
+        '<p>This node holds a full copy of the Monero blockchain. Connecting your wallet here instead of a public node means nobody can see which transactions you query \u2014 your IP stays private.</p>' +
+        '<p class="ts-detail" style="color:var(--accent-blue-soft);font-weight:700;margin-top:8px;">How to connect</p>' +
+        '<p>1. Install a wallet: <strong>Feather</strong> (desktop) or <strong>Cake Wallet</strong> (mobile)</p>' +
+        '<p>2. Open Settings \u2192 Remote Node \u2192 enter the address below \u2192 Save</p>' +
+        '<p style="margin-top:6px;">On WiFi: <code>192.168.8.20:18089</code> &nbsp;&bull;&nbsp; Over VPN: <code>100.64.1.1:18089</code></p>' +
+      '</div>');
+  }
+
+  function actionShowTor() {
+    showModal('<h3 style="text-align:center;">Tor Hidden Services</h3>' +
+      '<div style="display:flex;align-items:center;gap:20px;justify-content:center;">' +
+        '<div style="text-align:center;width:180px;flex-shrink:0;">' +
+          '<div class="qr-img" style="margin:0 auto;"><img src="qr-tor-element.svg?v=2" alt="Tor Element QR"></div>' +
+          '<p class="ts-detail" style="color:var(--accent-purple);font-weight:700;margin-top:6px;">Element Web</p>' +
+        '</div>' +
+        '<div style="width:1px;height:200px;background:var(--border);flex-shrink:0;"></div>' +
+        '<div style="text-align:center;max-width:140px;">' +
+          '<p class="ts-detail" style="color:var(--text-primary);margin-bottom:8px;">Scan with Tor Browser on your phone</p>' +
+          '<p class="ts-caption c-tertiary">Requires Tor Browser app (Android/iOS)</p>' +
+        '</div>' +
+        '<div style="width:1px;height:200px;background:var(--border);flex-shrink:0;"></div>' +
+        '<div style="text-align:center;width:180px;flex-shrink:0;">' +
+          '<div class="qr-img" style="margin:0 auto;"><img src="qr-tor-community.svg?v=2" alt="Tor Community QR"></div>' +
+          '<p class="ts-detail" style="color:var(--accent-purple);font-weight:700;margin-top:6px;">Community Page</p>' +
+        '</div>' +
+      '</div>');
+  }
+
+  function actionShowMesh() {
+    showModal(
+      '<h3>Radio / Mesh Networks</h3>' +
+      '<div style="display:flex;gap:20px;font-size:14px;line-height:1.35;color:#d0d0d0;">' +
+        '<div style="flex:1;">' +
+          '<p class="ts-detail" style="color:var(--accent-blue-soft);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Reticulum / NomadNet</p>' +
+          '<p>Encrypted mesh networking over LoRa, WiFi, and internet. Messages route automatically \u2014 no central server needed.</p>' +
+          '<p class="ts-caption" style="color:var(--accent-blue-soft);font-weight:600;margin-top:6px;">To connect:</p>' +
+          '<p>1. Install <strong>Sideband</strong> (Android/Linux) or <strong>NomadNet</strong> (CLI)</p>' +
+          '<p>2. Add TCP interface: <code class="ts-detail">192.168.8.20:4242</code></p>' +
+          '<p>3. Peers and pages discovered automatically</p>' +
+          '<p class="ts-caption c-tertiary" style="margin-top:4px;">LoRa: Heltec V3 (ANT 1 \u2014 RNode)</p>' +
+        '</div>' +
+        '<div style="width:1px;background:var(--border);flex-shrink:0;"></div>' +
+        '<div style="flex:1;">' +
+          '<p class="ts-detail" style="color:var(--accent-blue-soft);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Meshtastic</p>' +
+          '<p>Long-range text messaging over 915 MHz LoRa. No WiFi or cell service required. Range: 1\u201310 km depending on terrain.</p>' +
+          '<p class="ts-caption" style="color:var(--accent-blue-soft);font-weight:600;margin-top:6px;">To connect:</p>' +
+          '<p>1. Get a Meshtastic radio (Heltec V3, T-Beam, etc.)</p>' +
+          '<p>2. Install <strong>Meshtastic</strong> app (Android/iOS)</p>' +
+          '<p>3. Pair via Bluetooth \u2014 this node relays automatically</p>' +
+          '<p class="ts-caption c-tertiary" style="margin-top:4px;">Node: REPEATER &bull; 915 MHz &bull; Heltec V3 (ANT 2)</p>' +
+          '<div style="margin-top:8px;text-align:center;">' +
+            '<div style="width:80px;height:80px;background:#fff;border-radius:6px;padding:4px;display:inline-block;"><img src="qr-meshtastic.svg?v=2" style="width:100%;height:100%;" alt="Meshtastic App"></div>' +
+            '<p class="ts-caption c-secondary" style="margin-top:2px;">Meshtastic App</p>' +
+          '</div>' +
+        '</div>' +
+      '</div>');
+  }
+
+  function actionShowATAK() {
+    showModal(
+      '<h3>OpenTAK / ATAK <span class="subtitle">\u2014 Tactical Mapping</span></h3>' +
+      '<div style="display:flex;gap:20px;font-size:14px;line-height:1.35;color:#d0d0d0;">' +
+        '<div style="flex:1;">' +
+          '<p>ATAK is a tactical mapping app \u2014 everyone on the team sees each other\'s position on a shared map in real time. Used by military, SAR, disaster response, and community teams.</p>' +
+          '<p style="margin-top:4px;">OpenTAK Server on this node coordinates all devices over local WiFi. Web map UI at :8080. No internet required.</p>' +
+          '<p class="ts-caption" style="color:var(--accent-amber);font-weight:600;margin-top:4px;">Android only \u2014 no iOS version.</p>' +
+        '</div>' +
+        '<div style="width:1px;background:var(--border);flex-shrink:0;"></div>' +
+        '<div style="flex:1;">' +
+          '<p class="ts-detail" style="color:var(--accent-blue-soft);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">How to connect</p>' +
+          '<p class="ts-caption" style="color:var(--accent-blue-soft);font-weight:600;">Option A: Data Package (recommended)</p>' +
+          '<p>Ask the operator for a Data Package file. Import in ATAK \u2014 connection configures automatically.</p>' +
+          '<p class="ts-caption" style="color:var(--accent-blue-soft);font-weight:600;margin-top:6px;">Option B: Manual</p>' +
+          '<p>1. Sideload ATAK .apk (not on Play Store)</p>' +
+          '<p>2. Settings \u2192 Network \u2192 TAK Servers \u2192 Add</p>' +
+          '<p>3. Server: <code class="ts-detail">192.168.8.20</code> &nbsp; TCP: <code class="ts-detail">8088</code> &nbsp; SSL: <code class="ts-detail">8089</code></p>' +
+          '<p>4. Connect via <strong>CommunityNode</strong> WiFi or VPN</p>' +
+          '<p class="ts-caption" style="color:var(--accent-blue-soft);font-weight:600;margin-top:6px;">Voice (Push-to-Talk)</p>' +
+          '<p>Install <strong>Mumla Plugin</strong> in ATAK for PTT voice.</p>' +
+          '<p>Server: <code class="ts-detail">192.168.8.20</code> &nbsp; Port: <code class="ts-detail">64738</code></p>' +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:20px;align-items:flex-end;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);">' +
+        '<span class="ts-caption c-secondary" style="white-space:nowrap;align-self:center;">Get the apps:</span>' +
+        '<div style="text-align:center;">' +
+          '<div style="width:80px;height:80px;background:#fff;border-radius:6px;padding:4px;"><img src="qr-atak-android.svg?v=2" style="width:100%;height:100%;" alt="ATAK Android"></div>' +
+          '<span class="ts-caption c-secondary">ATAK (Android)</span>' +
+        '</div>' +
+        '<div style="text-align:center;">' +
+          '<div style="width:80px;height:80px;background:#fff;border-radius:6px;padding:4px;"><img src="qr-itak-ios.svg?v=2" style="width:100%;height:100%;" alt="iTAK iOS"></div>' +
+          '<span class="ts-caption c-secondary">iTAK (iOS)</span>' +
+        '</div>' +
+        '<div style="text-align:center;">' +
+          '<div style="width:80px;height:80px;background:#fff;border-radius:6px;padding:4px;"><img src="qr-mumla.svg?v=2" style="width:100%;height:100%;" alt="Mumla"></div>' +
+          '<span class="ts-caption c-secondary">Mumla (PTT)</span>' +
+        '</div>' +
+        '<div style="text-align:center;">' +
+          '<div style="width:80px;height:80px;background:#fff;border-radius:6px;padding:4px;"><img src="qr-atak-connect.svg?v=2" style="width:100%;height:100%;" alt="ATAK Connect"></div>' +
+          '<span class="ts-caption c-secondary">Connect QR</span>' +
+        '</div>' +
+      '</div>');
+  }
+
+  /* ── Set Node Location — creates/updates static marker on OTS map ── */
+  /* ── Idle screensaver ─────────────────────────────────────────────── */
+  var idleTimer;
+  var IDLE_MS = idleMinutes > 0 ? idleMinutes * 60 * 1000 : 0;
+
+  function resetIdle() {
+    clearTimeout(idleTimer);
+    if (!keepAwake && IDLE_MS > 0) {
+      idleTimer = setTimeout(function () {
+        window.location.href = '/screensaver.html';
+      }, IDLE_MS);
+    }
+  }
+
+  document.addEventListener('touchstart', resetIdle);
+  document.addEventListener('mousemove', resetIdle);
+  document.addEventListener('click', resetIdle);
+  resetIdle();
+  highlightSettings();
+  updateAuthCountdown();
+
+  /* Kiosk IP detection — best effort via WebRTC */
+  (function () {
+    try {
+      var pc = new RTCPeerConnection({iceServers: []});
+      pc.createDataChannel('');
+      pc.createOffer().then(function (offer) { return pc.setLocalDescription(offer); });
+      pc.onicecandidate = function (e) {
+        if (!e || !e.candidate || !e.candidate.candidate) return;
+        var parts = e.candidate.candidate.split(' ');
+        for (var i = 0; i < parts.length; i++) {
+          if (/^192\.168\./.test(parts[i])) {
+            document.getElementById('kiosk-ip').textContent = parts[i];
+            pc.close();
+            return;
+          }
+        }
+      };
+    } catch (err) {
+      document.getElementById('kiosk-ip').textContent = 'unavailable';
+    }
+  }());
+</script>
+</body>
+</html>

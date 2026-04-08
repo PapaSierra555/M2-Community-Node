@@ -1,0 +1,5 @@
+// kiosk-config.js — generated from this template during deployment
+// DO NOT commit the filled version. Only kiosk-config.js.template is tracked.
+// Deploy: cp kiosk-config.js.template kiosk-config.js, then fill in credentials.
+window.OTS_USER = "administrator";
+window.OTS_PASS = "CHANGE_ME";

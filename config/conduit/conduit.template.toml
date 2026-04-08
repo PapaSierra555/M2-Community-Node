@@ -1,0 +1,64 @@
+ # /etc/matrix-conduit/conduit.toml
+  # Conduit Matrix Homeserver — configuration
+  #
+  # Conduit is a lightweight Matrix homeserver written in Rust.
+  # Matrix is an open, federated messaging protocol — think email but for
+  # real-time chat, with end-to-end encryption built in.
+  #
+  # This homeserver's identity is "yourdomain.com" — all user IDs on this
+  # server look like @username:yourdomain.com. Federation lets users on
+  # other Matrix servers send messages to users here.
+  #
+  # Full config reference: conduit.rs/configuration
+
+  [global]
+
+  # ── Server identity ──────────────────────────────────────────────────────────
+  # This is the Matrix domain — it appears in all user and room IDs.
+  # Cannot be changed after first use without migrating the entire database.
+  # Must match the domain in your Cloudflare Tunnel DNS entry.
+  server_name = "m2.yourdomain.com"  # CHANGE_ME — your Matrix server domain
+
+  # ── Storage ──────────────────────────────────────────────────────────────────
+  # RocksDB is an embedded key-value store — fast, no separate DB process needed.
+  # Data is stored in the Docker volume mounted at this path.
+  # Back up this directory to preserve all rooms, messages, and user accounts.
+  database_path = "/var/lib/matrix-conduit/"
+  database_backend = "rocksdb"
+
+  # ── Network ──────────────────────────────────────────────────────────────────
+  # Port Conduit listens on internally. Nginx proxies to this port.
+  # Bound to 0.0.0.0 inside Docker — the compose file restricts external
+  # access to 127.0.0.1:6167 on the host (not directly LAN-accessible).
+  port = 6167
+  address = "0.0.0.0"
+
+  # Maximum size of a single Matrix request (media uploads, messages).
+  # 20MB is a reasonable limit for a community node.
+  max_request_size = 20_000_000
+
+  # ── Registration ─────────────────────────────────────────────────────────────
+  # Registration is OFF — new accounts require a token to register.
+  # To invite someone: share the registration_token value below.
+  # To temporarily open registration: set allow_registration = false,
+  # restart conduit, register the account, then set back to false.
+  allow_registration = false
+
+  # Token required to register a new account (when allow_registration = false).
+  # Generate a new one with: openssl rand -hex 32
+  registration_token = "CHANGE_ME — see M2_SECRETS.md"
+
+  # ── Federation ───────────────────────────────────────────────────────────────
+  # Federation allows users on OTHER Matrix servers to join rooms hosted here
+  # and exchange messages with local users — like email between mail servers.
+  # Set to false to run a fully isolated private server.
+  allow_federation = true
+
+  # Allow any local user to create a public room (visible in room directory).
+  # Set to false if you only want rooms created by admins.
+  allow_public_room_creation = true
+
+  # ── Logging ──────────────────────────────────────────────────────────────────
+  # "warn" keeps logs quiet in normal operation.
+  # Change to "info" or "debug" when troubleshooting.
+  log = "warn,rocket::launch=info,_=off,sled=off"

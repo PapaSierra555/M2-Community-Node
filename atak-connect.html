@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATAK Setup — M2 Community Node</title>
+  <style>
+    /* ATAK enrollment page — M2 Community Node
+       Served at https://192.168.8.20:8447/atak-connect.html
+       Same design system as community-web-index.html. No external deps. */
+
+    :root {
+      --bg-primary:      #0d1117;
+      --bg-surface:      #161b22;
+      --bg-elevated:     #1f2937;
+      --border:          #21262d;
+      --text-primary:    #f0f6fc;
+      --text-secondary:  #8b949e;
+      --text-tertiary:   #6e7681;
+      --accent-blue:     #3b82f6;
+      --accent-blue-soft:#64b5f6;
+      --accent-green:    #22c55e;
+      --accent-amber:    #ffb74d;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-primary);
+      color: #c9d1d9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem;
+    }
+
+    /* ── Hero ─────────────────────────────────────────── */
+
+    .hero {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-icon {
+      width: 52px;
+      height: 52px;
+      flex-shrink: 0;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .hero-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .hero-text h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .hero-text .tagline {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    /* ── Section headers ─────────────────────────────── */
+
+    h2 {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+      margin-bottom: 0.75rem;
+    }
+
+    section { margin-bottom: 1.5rem; }
+
+    /* ── Intro callout ───────────────────────────────── */
+
+    .intro-callout {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.9rem 1rem;
+      font-size: 0.85rem;
+      color: #c9d1d9;
+      margin-bottom: 1.5rem;
+    }
+
+    .intro-callout p + p { margin-top: 0.4rem; }
+
+    /* ── Onboarding steps ─────────────────────────────── */
+
+    .onboard-steps {
+      counter-reset: step;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .onboard-steps li {
+      counter-increment: step;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.75rem 0;
+      font-size: 0.85rem;
+      color: #c9d1d9;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .onboard-steps li:last-child { border-bottom: none; }
+
+    .onboard-steps li::before {
+      content: counter(step);
+      flex-shrink: 0;
+      width: 1.6rem;
+      height: 1.6rem;
+      background: var(--accent-blue);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 0.1rem;
+    }
+
+    .onboard-steps li strong { color: var(--text-primary); }
+
+    .step-body { flex: 1; min-width: 0; }
+
+    .step-note {
+      font-size: 0.76rem;
+      color: var(--text-secondary);
+      margin-top: 0.3rem;
+    }
+
+    /* ── App card grid ───────────────────────────────── */
+
+    .app-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+      margin-top: 0.75rem;
+    }
+
+    .app-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 0.75rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+      text-align: center;
+      text-decoration: none;
+      height: 100%;   /* fill grid cell so margin-top:auto on badge works */
+    }
+
+    .app-card:hover { border-color: var(--accent-blue); text-decoration: none; }
+
+    .app-card .app-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 14px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .app-card .app-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.2;
+    }
+
+    .app-card .app-platform {
+      font-size: 0.68rem;
+      color: var(--text-tertiary);
+      letter-spacing: 0.02em;
+    }
+
+    .app-card .store-badge {
+      margin-top: auto;   /* push badge to bottom of card so both align on same baseline */
+      padding-top: 0.75rem;
+      width: 100%;
+    }
+
+    .app-card .store-badge img {
+      height: 46px;       /* App Store badge — no internal whitespace, pure pill */
+      width: auto;
+      max-width: 100%;
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* Google Play PNG includes ~25% internal whitespace — scale up so visual pill matches App Store 46px */
+    .app-card .store-badge img.badge-play {
+      height: 60px;
+    }
+
+    /* App Store SVG has no intrinsic pixel size — lock width to prevent stretching to fill container */
+    .app-card .store-badge img.badge-appstore {
+      margin-top: -2px;
+      width: 138px;
+    }
+
+    /* ── Note / warning boxes ────────────────────────── */
+
+    .note-box {
+      background: #1a2a1a;
+      border: 1px solid #2a4a2a;
+      border-radius: 6px;
+      padding: 0.6rem 0.8rem;
+      font-size: 0.78rem;
+      color: #86c986;
+      margin-top: 0.5rem;
+    }
+
+    .warn-box {
+      background: #2a200a;
+      border: 1px solid #4a380a;
+      border-radius: 6px;
+      padding: 0.6rem 0.8rem;
+      font-size: 0.78rem;
+      color: var(--accent-amber);
+      margin-top: 0.5rem;
+    }
+
+    /* ── Download button ─────────────────────────────── */
+
+    .download-section {
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--border);
+      margin-top: 0.5rem;
+    }
+
+    .download-btn {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      background: var(--accent-blue);
+      border-radius: 10px;
+      text-decoration: none;
+      color: #fff;
+      width: 100%;
+      transition: background 0.15s;
+    }
+
+    .download-btn:hover, .download-btn:active {
+      background: #2563eb;
+      text-decoration: none;
+    }
+
+    .download-btn .dl-icon {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+    }
+
+    .download-btn .dl-icon svg {
+      width: 40px;
+      height: 40px;
+      stroke: #fff;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    .download-btn .dl-text strong {
+      display: block;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .download-btn .dl-text span {
+      font-size: 0.75rem;
+      color: #ffffffcc;
+    }
+
+    .cert-notice {
+      font-size: 0.75rem;
+      color: var(--text-tertiary);
+      text-align: center;
+      margin-top: 0.6rem;
+    }
+
+    .cert-notice strong { color: var(--text-secondary); }
+
+    /* ── Divider ─────────────────────────────────────── */
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 1.25rem 0; }
+
+    /* ── Manual fallback ─────────────────────────────── */
+
+    .manual-block {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      font-size: 0.82rem;
+    }
+
+    .manual-block h3 {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.6rem;
+    }
+
+    .manual-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      padding: 0.1rem 0;
+    }
+
+    .manual-label { color: var(--text-secondary); min-width: 70px; font-size: 0.76rem; }
+
+    .manual-value {
+      color: var(--text-primary);
+      font-family: "SF Mono", "Fira Code", Consolas, monospace;
+      font-size: 0.82rem;
+    }
+
+    /* ── Links ────────────────────────────────────────── */
+
+    a { color: var(--accent-blue-soft); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Footer ──────────────────────────────────────── */
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding-top: 1rem;
+      margin-top: 1rem;
+      font-size: 0.72rem;
+      color: var(--text-tertiary);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    footer a { color: var(--accent-blue-soft); }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ── Hero ──────────────────────────────────────────── -->
+  <header class="hero">
+    <div class="hero-icon">
+      <img src="icon-atak-civ.png" alt="ATAK">
+    </div>
+    <div class="hero-text">
+      <h1>ATAK Setup</h1>
+      <div class="tagline">M2 Community Node &mdash; Tactical Map Enrollment</div>
+    </div>
+  </header>
+
+  <!-- ── Intro ─────────────────────────────────────────── -->
+  <div class="intro-callout">
+    <p>ATAK gives you a live shared map with team positions, markers, and encrypted messaging &mdash; all offline, over the CommunityNode WiFi.</p>
+    <p>Follow the steps below in order. The download link is at the bottom. Read this page first so enrollment goes smoothly.</p>
+  </div>
+
+  <!-- ── Steps ─────────────────────────────────────────── -->
+  <section>
+    <h2>Setup Steps</h2>
+    <ol class="onboard-steps">
+
+      <li>
+        <div class="step-body">
+          <strong>Install the ATAK app</strong> on your device. ATAK-CIV is Android only. iPhone users install iTAK from the App Store.
+          <div class="app-grid">
+
+            <a href="https://play.google.com/store/apps/details?id=com.atakmap.app.civ" class="app-card">
+              <img class="app-icon" src="icon-atak-civ.png" alt="ATAK-CIV icon">
+              <span class="app-name">ATAK-CIV</span>
+              <span class="app-platform">Android</span>
+              <div class="store-badge">
+                <img src="badge-google-play.png" alt="Get it on Google Play" class="badge-play">
+              </div>
+            </a>
+
+            <a href="https://apps.apple.com/us/app/itak/id1561656396" class="app-card">
+              <img class="app-icon" src="icon-itak.jpg" alt="iTAK icon">
+              <span class="app-name">iTAK</span>
+              <span class="app-platform">iPhone</span>
+              <div class="store-badge">
+                <img src="badge-app-store.svg" alt="Download on the App Store" class="badge-appstore">
+              </div>
+            </a>
+
+          </div>
+        </div>
+      </li>
+
+      <li>
+        <div class="step-body">
+          <strong>Install a voice app</strong> for push-to-talk team comms over WiFi. Android uses Mumla, iPhone uses Mumble &mdash; they connect to the same server.
+          <div class="app-grid">
+
+            <a href="https://play.google.com/store/apps/details?id=se.lublin.mumla" class="app-card">
+              <svg style="width:64px;height:64px;background:#1a3a66;border-radius:14px;padding:14px;" viewBox="0 0 24 24" fill="none" stroke="#64b5f6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+              <span class="app-name">Mumla</span>
+              <span class="app-platform">Android</span>
+              <div class="store-badge">
+                <img src="badge-google-play.png" alt="Get it on Google Play" class="badge-play">
+              </div>
+            </a>
+
+            <a href="https://apps.apple.com/us/app/mumble/id443472808" class="app-card">
+              <img class="app-icon" src="icon-mumble-ios.jpg" alt="Mumble icon">
+              <span class="app-name">Mumble</span>
+              <span class="app-platform">iPhone</span>
+              <div class="store-badge">
+                <img src="badge-app-store.svg" alt="Download on the App Store" class="badge-appstore">
+              </div>
+            </a>
+
+          </div>
+          <p class="step-note">After connecting: open your voice app &rarr; add server &rarr; 192.168.8.20, port 64738. No password needed.</p>
+        </div>
+      </li>
+
+      <li>
+        <div class="step-body">
+          <strong>Open ATAK</strong> and grant all requested permissions &mdash; location, battery optimization exemption, and storage. ATAK needs these to track your position and store map data.
+          <div class="warn-box">
+            Do not connect ATAK to any server manually. The next step handles enrollment automatically.
+          </div>
+        </div>
+      </li>
+
+      <li>
+        <div class="step-body">
+          <strong>Import the connection package</strong> using the button below. Tap <strong>Open in ATAK</strong> first &mdash; it opens ATAK and imports automatically. If that button does not work on your device, use the zip download and import manually.
+          <p class="step-note"><strong>Manual import:</strong> Download the zip &rarr; open ATAK &rarr; hamburger menu (&equiv;) &rarr; Import Manager &rarr; Local SD &rarr; navigate to Downloads &rarr; select the zip &rarr; OK.</p>
+          <div class="note-box">
+            Your icon appears on the shared map. You&rsquo;re in. If ATAK prompts for credentials, ask your operator.
+          </div>
+        </div>
+      </li>
+
+      <li>
+        <div class="step-body">
+          <strong>Set your callsign.</strong> Settings &rarr; My Preferences &rarr; Callsign. Use your name or the callsign assigned by the operator. This is how you appear on the team map.
+        </div>
+      </li>
+
+      <li>
+        <div class="step-body">
+          <strong>Set your reporting mode.</strong> Settings &rarr; My Preferences &rarr; Reporting Preferences &rarr; Reporting Strategy &rarr; set to <strong>Consistent</strong>. This ensures your position is sent on a fixed interval. The default Dynamic mode only reports when you move &mdash; a stationary device will not appear on the map.
+        </div>
+      </li>
+
+      <li>
+        <div class="step-body">
+          <strong>Verify your connection.</strong> Your icon should be visible on the map within 30 seconds. Send a test message in GeoChat &rarr; General to confirm you&rsquo;re on the team net.
+          <p class="step-note"><strong>Not showing on map?</strong> Go to Settings &rarr; Network Preferences &rarr; TAK Servers &rarr; tap your server &rarr; toggle <em>Enabled</em> off then back on. Wait 30 seconds. This forces a fresh connection and SA report.</p>
+        </div>
+      </li>
+
+    </ol>
+  </section>
+
+  <!-- ── Download ───────────────────────────────────────── -->
+  <div class="download-section">
+    <h2>Step 4 &mdash; Connect to M2 Node</h2>
+
+    <p style="margin:0 0 0.75rem;font-size:0.9rem;color:var(--text-secondary)"><strong>Android (ATAK):</strong> Tap <em>Open in ATAK</em> &mdash; opens ATAK and imports automatically.</p>
+    <a href="tak://com.atakmap.app/import?url=https://atakenroll.yourdomain.com:8447/atak-connect.zip" class="download-btn" style="margin-bottom:0.75rem">
+      <div class="dl-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div class="dl-text">
+        <strong>Open in ATAK</strong>
+        <span>Android only &mdash; opens ATAK and connects automatically</span>
+      </div>
+    </a>
+
+    <p style="margin:0 0 0.75rem;font-size:0.9rem;color:var(--text-secondary)"><strong>Fallback / iOS:</strong> Download the zip, then import manually in ATAK or iTAK.</p>
+    <a href="atak-connect.zip" class="download-btn" download>
+      <div class="dl-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </div>
+      <div class="dl-text">
+        <strong>Download atak-connect.zip</strong>
+        <span>M2 Community Node &mdash; connection package</span>
+      </div>
+    </a>
+    <p class="cert-notice">
+      <strong>Cert warning?</strong> Tap Advanced &rarr; Proceed to 192.168.8.20. Expected on a private network with a local certificate.
+    </p>
+  </div>
+
+  <!-- ── Manual fallback ───────────────────────────────── -->
+  <hr class="divider">
+  <section>
+    <h2>Manual Connection (If Package Fails)</h2>
+    <div class="manual-block">
+      <h3>TAK Server Settings</h3>
+      <div class="manual-row">
+        <span class="manual-label">Server</span>
+        <span class="manual-value">192.168.8.20</span>
+      </div>
+      <div class="manual-row">
+        <span class="manual-label">Port</span>
+        <span class="manual-value">8089</span>
+      </div>
+      <div class="manual-row">
+        <span class="manual-label">Protocol</span>
+        <span class="manual-value">SSL</span>
+      </div>
+      <div class="manual-row">
+        <span class="manual-label">Credentials</span>
+        <span class="manual-value">Ask your operator</span>
+      </div>
+    </div>
+    <p style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.6rem;">
+      ATAK &rarr; Settings &rarr; Network &rarr; TAK Servers &rarr; Add. Enable <em>Use Authentication</em> and <em>Enroll for Client Certificate</em>. Uncheck <em>Use default SSL/TLS Certificates</em>. Truststore password from your operator.
+    </p>
+  </section>
+
+  <!-- ── Remote access ─────────────────────────────────── -->
+  <section>
+    <h2>Not on the WiFi?</h2>
+    <p style="font-size:0.82rem;color:var(--text-secondary);">
+      Browser map at <a href="https://tak.yourdomain.com">tak.yourdomain.com</a> &mdash; no app needed, full shared map, email OTP login.<br>
+      Remote ATAK requires VPN &mdash; ask an operator.
+    </p>
+  </section>
+
+  <!-- ── Footer ────────────────────────────────────────── -->
+  <footer>
+    M2 Community Node &mdash; Open source, self-hosted, community operated.<br>
+    No tracking. No third parties. No cloud dependencies.<br>
+    <a href="mailto:info@yourdomain.com">info@yourdomain.com</a>
+    &nbsp;&bull;&nbsp;
+    <a href="http://192.168.8.10:8081">Community Page</a>
+  </footer>
+
+</div>
+</body>
+</html>

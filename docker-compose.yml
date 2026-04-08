@@ -1,0 +1,234 @@
+  # /opt/community-node/docker-compose.yml
+  # Node #1 — Communications Stack
+  #
+  # This compose file runs all privacy and communication services on Pi #1.
+  # Services are grouped into Docker networks to control what can talk to what.
+  #
+  # PROFILES:
+  #   (no profile)  — core services only: Matrix, Element, Nginx, I2P, Tor
+  #   clearnet      — adds Cloudflare Tunnel for internet-facing access
+  #   full          — same as clearnet (alias)
+  #
+  # Start core only:    docker compose up -d
+  # Start with tunnel:  docker compose --profile clearnet up -d
+  #
+  # MEMORY LIMITS: each service has a mem_limit set conservatively for Pi 5 16GB.
+  # Total ceiling across all services: ~1.3GB, leaving ~14.7GB headroom.
+
+  networks:
+
+    # Primary bridge network — all services can reach each other by container name
+    # e.g., nginx proxies to "conduit:6167" and "element-web:80"
+    community-net:
+      driver: bridge
+      ipam:
+        config:
+          - subnet: 172.20.0.0/24
+
+    # Isolated network for Tor — internal: true means no external routing
+    # Tor container can reach community-net services but cannot be reached from outside
+    tor-net:
+      driver: bridge
+      internal: true
+
+    # Isolated network for I2P — same isolation principle as tor-net
+    i2p-net:
+      driver: bridge
+      internal: true
+
+  services:
+
+    # ── Matrix homeserver (Conduit) ─────────────────────────────────────────────
+    # Conduit is a lightweight Matrix homeserver written in Rust.
+    # It handles all Matrix protocol traffic: rooms, messages, federation, auth.
+    # Uses RocksDB as its database backend (fast, embedded, no separate DB process).
+    #
+    # Port 6167 is bound to 127.0.0.1 only — not exposed to LAN directly.
+    # All external access goes through Nginx (port 80/443) which proxies here.
+    # Admin access: curl http://127.0.0.1:6167/_matrix/client/versions
+    conduit:
+      image: matrixconduit/matrix-conduit:${CONDUIT_VERSION:-v0.10.12}
+      restart: unless-stopped
+      networks:
+        - community-net
+      ports:
+        - "127.0.0.1:6167:6167"
+      volumes:
+        - ./data/conduit:/var/lib/matrix-conduit
+        - ./config/conduit/conduit.toml:/etc/matrix-conduit/conduit.toml:ro
+      environment:
+        CONDUIT_CONFIG: /etc/matrix-conduit/conduit.toml
+      mem_limit: 512m
+
+    # ── Element Web (Matrix client) ─────────────────────────────────────────────
+    # Element Web is the official Matrix web client — a React app served as static
+    # files. It connects to Conduit via the browser (not server-side).
+    #
+    # This container just serves the static HTML/JS/CSS on port 80 internally.
+    # Nginx exposes it on port 8080 (LAN) and via Tor hidden service.
+    # element-config.json tells it which homeserver to connect to by default.
+    element-web:
+      image: ghcr.io/element-hq/element-web:${ELEMENT_VERSION:-v1.12.14}
+      restart: unless-stopped
+      networks:
+        - community-net
+      volumes:
+        - ./config/element/element-config.json:/app/config.json:ro
+      mem_limit: 64m
+
+    # ── Nginx reverse proxy ─────────────────────────────────────────────────────
+    # Nginx is the single entry point for all inbound traffic to this node.
+    # It handles TLS termination, routing, and rate limiting.
+    #
+    # Port layout:
+    #   80   — Matrix API over HTTP (LAN access + Cloudflare Tunnel ingress)
+    #   443  — Matrix API over HTTPS (local TLS, also used by Tor hidden service)
+    #   8448 — Matrix federation (server-to-server traffic)
+    #   8080 — Element Web (Tor hidden service + LAN)
+    #   8081 — Community static web pages (Tor eepsite + I2P)
+    #
+    # Self-signed cert at config/nginx/ssl/ handles local HTTPS and Tor traffic.
+    # Cloudflare terminates real TLS for clearnet — nginx receives plain HTTP.
+    nginx:
+      image: nginx:1.28.2-alpine3.23
+      restart: unless-stopped
+      networks:
+        - community-net
+      ports:
+        - "80:80"
+        - "443:443"
+        - "8448:8448"
+        - "8080:8080"
+        - "8081:8081"
+      volumes:
+        - ./config/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+        - ./config/nginx/ssl:/etc/nginx/ssl:ro
+        - /etc/letsencrypt:/etc/letsencrypt:ro
+        - /opt/community-node/data/community-web:/var/www/html:ro
+      mem_limit: 128m
+      depends_on:
+        - conduit
+        - element-web
+
+    # ── I2P router (i2pd) ───────────────────────────────────────────────────────
+    # i2pd is a C++ implementation of the I2P anonymous network router.
+    # I2P (Invisible Internet Project) routes traffic through a distributed
+    # network of volunteer nodes using layered encryption — similar to Tor
+    # but optimized for persistent services rather than exit browsing.
+    #
+    # In this build i2pd provides:
+    #   - An .i2p address for Matrix API (matrix-i2p tunnel → nginx:80)
+    #   - An .i2p eepsite for community web pages (community-eepsite → nginx:8081)
+    #
+    # Port layout:
+    #   7070 — i2pd web console (view router stats, tunnel addresses)
+    #   4444 — HTTP proxy (browse .i2p sites from your browser)
+    #   4447 — SOCKS proxy (general SOCKS5 access to I2P network)
+    #   7656 — SAM bridge (lets apps connect to I2P programmatically)
+    #
+    # CLI flags override i2pd.conf because the container ignores the config file
+    # path by default. --http.strictheaders=false allows console access by IP.
+    # i2pd runs as UID 100:65533 — data dir must be chowned accordingly.
+    i2pd:
+      image: purplei2p/i2pd:${I2PD_VERSION:-release-2.59.0}
+      restart: unless-stopped
+      networks:
+        - community-net
+        - i2p-net
+      command:
+        - --http.address=0.0.0.0
+        - --http.port=7070
+        - --http.strictheaders=false
+        - --httpproxy.address=0.0.0.0
+        - --socksproxy.address=0.0.0.0
+        - --sam.address=0.0.0.0
+      ports:
+        - "7070:7070"
+        - "4444:4444"
+        - "4447:4447"
+        - "7656:7656"
+      volumes:
+        - ./data/i2pd:/home/i2pd/data
+        - ./config/i2pd/i2pd.conf:/home/i2pd/i2pd.conf:ro
+        - ./config/i2pd/tunnels.conf:/home/i2pd/tunnels.conf:ro
+      mem_limit: 256m
+
+    # ── Tor hidden services ─────────────────────────────────────────────────────
+    # Tor provides .onion v3 hidden services — censorship-resistant access to
+    # Matrix, Element, and the community web page without any DNS or clearnet
+    # dependency. Users with Tor Browser connect directly via the .onion address.
+    #
+    # Hidden service addresses are generated on first start and stored in
+    # data/tor/ — back this directory up. Losing it means losing the .onion address.
+    #
+    # Tor routes to nginx over HTTP (not HTTPS) to avoid self-signed cert warnings
+    # in Tor Browser. Tor's own encryption makes the HTTP hop safe inside Docker.
+    #
+    # Retrieve .onion addresses after first start:
+    #   docker exec tor cat /var/lib/tor/matrix_hidden_service/hostname
+    #   docker exec tor cat /var/lib/tor/element_hidden_service/hostname
+    tor:
+      image: osminogin/tor-simple:0.4.8.21
+      restart: unless-stopped
+      networks:
+        - community-net
+        - tor-net
+      volumes:
+        - ./config/tor/torrc:/etc/tor/torrc:ro
+        - ./data/tor:/var/lib/tor
+      mem_limit: 128m
+
+
+    # ── AdGuard Home (DNS resolver + ad blocking) ──────────────────────────────
+    # AdGuard Home provides local DNS resolution for the CommunityNode WiFi.
+    # GL.iNet DHCP serves 192.168.8.10 (this Pi) as the DNS server for all clients.
+    #
+    # Port layout:
+    #   53   — DNS (TCP + UDP) — intercepts all client DNS queries
+    #   3000 — AdGuard admin web UI
+    #   8083 — mapped to container port 80 for web UI fallback
+    #
+    # Resolves m2-matrix.yourdomain.com and other *.yourdomain.com subdomains
+    # to LAN IPs (192.168.8.10 / 192.168.8.20) so Android phones and ATAK don't
+    # bypass local services. Also intercepts DNS-over-TLS (port 853 DNAT on comms).
+    adguard:
+      image: adguard/adguardhome:v0.107.73
+      container_name: adguard
+      restart: unless-stopped
+      ports:
+        - "53:53/tcp"
+        - "53:53/udp"
+        - "3000:3000/tcp"
+        - "8083:80/tcp"
+      volumes:
+        - /opt/community-node/adguard/work:/opt/adguardhome/work
+        - /opt/community-node/adguard/conf:/opt/adguardhome/conf
+      networks:
+        - community-net
+
+    # ── Cloudflare Tunnel ───────────────────────────────────────────────────────
+    # Cloudflared creates an outbound-only encrypted tunnel to Cloudflare's edge.
+    # This gives matrix.yourdomain.com a real TLS certificate and clearnet
+    # access WITHOUT opening any inbound firewall ports on the GL.iNet router.
+    #
+    # The tunnel token authenticates this instance to your Cloudflare account.
+    # All routing rules (which subdomain → which service) are configured in the
+    # Cloudflare Zero Trust dashboard — not in any local config file.
+    #
+    # This service only starts when the "clearnet" or "full" profile is used:
+    #   docker compose --profile clearnet up -d
+    # Omit the profile flag to run air-gapped (local/Tor/I2P only).
+    #
+    # --no-autoupdate: prevents the container from self-updating (we pin versions)
+    cloudflared:
+      image: cloudflare/cloudflared:2026.3.0
+      restart: unless-stopped
+      networks:
+        - community-net
+      volumes:
+        - ./config/cloudflared:/etc/cloudflared:ro
+      command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+      mem_limit: 128m
+      profiles:
+        - clearnet
+        - full
