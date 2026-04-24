@@ -8,6 +8,7 @@ This directory contains the complete build and operations documentation for the 
 
 1. **[PREREQUISITES.md](PREREQUISITES.md)** — Hardware, skills, and tools required before you start
 2. **[HARDWARE_BOM.md](HARDWARE_BOM.md)** — Full bill of materials with sourcing notes
+   - Not using Pi 5 16GB? Read **[BUILD_OPTIONS.md](BUILD_OPTIONS.md)** first — covers Pi 4, mini PCs, single-device, and no-Monero builds
 3. **[BUILD_GUIDE.md](BUILD_GUIDE.md)** — The primary build reference: OS install, networking, services, configuration
 4. **[SERVICE_MAP.md](SERVICE_MAP.md)** — Every service, its role, port, and which Pi it runs on
 5. **[NETWORK_CUSTOMIZATION.md](NETWORK_CUSTOMIZATION.md)** — How to adapt the reference 192.168.8.x layout to your environment
@@ -45,6 +46,7 @@ This directory contains the complete build and operations documentation for the 
 | Document | Topic |
 |---|---|
 | [MASTER_PLAN.md](MASTER_PLAN.md) | System architecture overview and design decisions |
+| [BUILD_OPTIONS.md](BUILD_OPTIONS.md) | Hardware alternatives — Pi 4, mini PCs, single-device, and no-Monero builds |
 | [M2_Network_Diagram.drawio](M2_Network_Diagram.drawio) | Full network diagram — renders natively on GitHub; open in [app.diagrams.net](https://app.diagrams.net) to edit or print |
 
 ---

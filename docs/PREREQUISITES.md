@@ -44,6 +44,8 @@ Let's Encrypt requires a contact email for certificate issuance. This email rece
 
 ## Hardware You Must Have Before Starting
 
+> **Not using the reference hardware?** See [BUILD_OPTIONS.md](BUILD_OPTIONS.md) for Pi 4, mini PC, single-device, and no-Monero alternatives before purchasing.
+
 | Item | Notes |
 |------|-------|
 | 2x Raspberry Pi 5 (8GB or 16GB) | 16GB strongly recommended for Monero |

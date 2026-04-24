@@ -39,7 +39,7 @@ A self-contained tactical and community communications hub that fits in a shoebo
 - **Headscale** — self-hosted VPN for remote operator access
 - **Offline Maps** — PMTiles street-level maps + DTED2 terrain data
 
-**Cost:** ~$994 (recommended build) | ~$889 (budget, single Pi)
+**Cost:** ~$994 (recommended build) | ~$889 (budget, single Pi) | [See all build options →](docs/BUILD_OPTIONS.md)
 
 ---
 
@@ -73,6 +73,7 @@ All reference documentation. Read in this order if you're building:
 |---|---|
 | [PREREQUISITES.md](docs/PREREQUISITES.md) | What you need before you start |
 | [HARDWARE_BOM.md](docs/HARDWARE_BOM.md) | Complete BOM — every part, ASIN, and price |
+| [BUILD_OPTIONS.md](docs/BUILD_OPTIONS.md) | Hardware alternatives — Pi 4, mini PCs, single-device, no-Monero builds |
 | [MASTER_PLAN.md](docs/MASTER_PLAN.md) | Architecture, service inventory, network layout |
 | [M2_Network_Diagram.drawio](docs/M2_Network_Diagram.drawio) | Full network diagram — all services, ports, connectivity paths |
 | [BUILD_GUIDE.md](docs/BUILD_GUIDE.md) | **Main build guide — 13 phases, every command** |

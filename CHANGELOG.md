@@ -6,6 +6,15 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.1] — 2026-04-24
+
+### Added
+- `docs/BUILD_OPTIONS.md` — hardware alternatives guide covering Pi 4, Pi 5 8GB, x86_64 mini PCs,
+  single-device builds, no-Monero variants, and service dependency map
+- Cross-references to BUILD_OPTIONS.md in README, HARDWARE_BOM.md, PREREQUISITES.md, docs/README.md
+
+---
+
 ## [1.0.0] — 2026-04-24
 
 First public release. Full release notes: [RELEASE_NOTES.md](RELEASE_NOTES.md)

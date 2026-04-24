@@ -2,6 +2,8 @@
 
 > **Portable 10" Mini-Rack Community Node**
 > Inspired by [Jeff Geerling's Project MINI RACK](https://mini-rack.jeffgeerling.com/) -- compact, portable homelabs in a 10" form factor.
+>
+> **Not building with Pi 5 16GB?** See [BUILD_OPTIONS.md](BUILD_OPTIONS.md) for Pi 4, mini PC, single-device, and no-Monero hardware alternatives.
 
 ---
 
