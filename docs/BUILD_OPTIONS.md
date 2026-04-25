@@ -18,7 +18,9 @@ Pi #1 (comms) benefits from NVMe too, but Conduit and the other comms services c
 
 ### 2. 16GB RAM is required if you run Monero
 
-Monero's Docker container is limited to 4GB. During initial blockchain sync it can spike to 4–5GB actual usage. The OS and Docker daemon consume ~1.2GB before any services start. The rest of the tactical stack (OTS, Headscale, Mumble, Reticulum, Mosquitto) uses another 0.8–1.2GB. On an 8GB board, initial sync will cause swap thrashing and likely system instability. 16GB gives you 10–11GB headroom during worst-case Monero load.
+Monero's Docker container is limited to 4GB. During initial blockchain sync it can spike to 4–5GB actual usage. Pi #2 (tactical) is a headless Pi OS Lite install — the OS, Docker daemon, and SSH together consume ~350–400MB before any services start. The rest of the tactical stack (OTS, Headscale, Mumble, Reticulum, Mosquitto) uses another 800MB–1.2GB. On an 8GB board, initial sync will cause swap thrashing and likely system instability. 16GB gives you comfortable headroom during worst-case Monero load.
+
+Note: Pi #1 (comms) has a higher baseline — the kiosk installs Sway (Wayland compositor) and Chromium, which adds ~400–500MB on top of the OS. Pi #1 baseline is ~700–800MB. Still well within 8GB for the comms stack alone.
 
 If you drop Monero, the RAM floor drops to ~4GB for either Pi.
 
