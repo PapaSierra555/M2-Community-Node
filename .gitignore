@@ -25,6 +25,9 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Meshtastic QR card — encodes active PSK in QR, never commit
+meshtastic/pdf/M2_Mesh_ChannelQR_DayOf.pdf
+
 # Playwright MCP logs
 .playwright-mcp/
 
