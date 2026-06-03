@@ -205,26 +205,28 @@ The remote user needs two apps on their Android phone:
 
 **Step 1: Generate a VPN auth key (on tactical Pi)**
 
-```
-[SSH -- tactical-lan]
-sudo docker exec tactical-node-headscale-1 headscale preauthkeys create --user community --expiration 24h
-```
-
-This prints a one-time auth key. Copy it. Set `--expiration` to match how long you want the key to work (24h for a single operation, 90d for a standing team member).
-
-For a standing team member who should persist:
+Headscale runs as a systemd service (not Docker). Use the binary directly.
 
 ```
 [SSH -- tactical-lan]
-sudo docker exec tactical-node-headscale-1 headscale preauthkeys create --user community --expiration 90d --reusable
+sudo headscale preauthkeys create -c /opt/tactical-node/config/headscale/config.yaml --user 2 --expiration 24h
 ```
+
+User IDs: `1` = admin (infrastructure), `2` = community (event attendees). For a one-time op use `--expiration 24h`. For a standing reusable key:
+
+```
+[SSH -- tactical-lan]
+sudo headscale preauthkeys create -c /opt/tactical-node/config/headscale/config.yaml --user 2 --reusable --expiration 2160h
+```
+
+List current keys: `sudo headscale preauthkeys list -c /opt/tactical-node/config/headscale/config.yaml`
 
 **Step 2: Send the user these instructions**
 
 ```
 1. Install Tailscale from the Play Store
 2. Open Tailscale > tap profile icon > Accounts > three-dot menu > "Use an alternate server"
-3. Enter: https://m2vpn.yourdomain.com
+3. Enter: https://m2vpn.capableenough.org
 4. Paste the auth key I sent you
 5. Tailscale connects -- you now have a VPN tunnel to the node
 
@@ -244,7 +246,7 @@ sudo docker exec tactical-node-headscale-1 headscale preauthkeys create --user c
 
 ```
 [SSH -- tactical-lan]
-sudo docker exec tactical-node-headscale-1 headscale nodes list
+sudo headscale nodes list -c /opt/tactical-node/config/headscale/config.yaml
 ```
 
 Confirm their device appears with an assigned IP (100.64.x.x range).
@@ -253,7 +255,7 @@ Confirm their device appears with an assigned IP (100.64.x.x range).
 
 ```
 [SSH -- tactical-lan]
-sudo docker exec tactical-node-headscale-1 headscale nodes delete --identifier <id>
+sudo headscale nodes delete -c /opt/tactical-node/config/headscale/config.yaml --identifier <id>
 ```
 
 The user's Tailscale immediately disconnects. No residual access.

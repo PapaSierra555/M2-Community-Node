@@ -60,17 +60,18 @@ community-node-conduit-1       Up X hours
 
 ```
 [SSH — tactical-lan]
-systemctl is-active opentakserver cot_parser && docker ps --format "table {{.Names}}\t{{.Status}}"
+systemctl is-active opentakserver cot_parser headscale && docker ps --format "table {{.Names}}\t{{.Status}}"
 ```
 
-Expected: `active` (twice), then containers:
+Expected: `active` (three times), then containers:
 ```
 tactical-node-monerod-1     Up X hours (healthy)
 tactical-node-nomadnet-1    Up X hours
 tactical-node-reticulum-1   Up X hours
 tactical-node-mosquitto-1   Up X hours
-tactical-node-headscale-1   Up X hours
 ```
+
+> Note: Headscale runs as a systemd service (`headscale.service`), not Docker. Verify with `systemctl is-active headscale`.
 
 ---
 
@@ -108,10 +109,10 @@ tactical-node-headscale-1   Up X hours
 
 ```
 [SSH — tactical-lan]
-sudo docker exec tactical-node-headscale-1 headscale preauthkeys create --user community --expiration 24h
+sudo headscale preauthkeys create -c /opt/tactical-node/config/headscale/config.yaml --user 2 --expiration 24h
 ```
 
-Send them the key + `https://m2vpn.yourdomain.com` + ATAK server `192.168.8.20:8089`.
+Send them the key + `https://m2vpn.capableenough.org` + ATAK server `192.168.8.20:8089`.
 
 ---
 
