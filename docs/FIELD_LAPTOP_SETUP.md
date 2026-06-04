@@ -312,23 +312,74 @@ Should show `crypto_LUKS` on the main drive if encryption was enabled during ins
 
 ---
 
-## Future: Radio Tools (TODO)
+## Phase 13 — RF / Security Tools (Installed 2026-06-03)
 
-These will be added when radio integration is in scope:
+### 13.1 WiFi Security Suite
 
-- [ ] **CHIRP** — programming cable radio programming (`sudo apt install chirp`)
+```bash
+sudo apt install -y tshark aircrack-ng hashcat
+```
+
+Add Kismet official repo (not in Ubuntu default repos):
+```bash
+wget -O - https://www.kismetwireless.net/repos/kismet-release.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/kismet-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/kismet-archive-keyring.gpg] https://www.kismetwireless.net/repos/apt/release/noble noble main" | sudo tee /etc/apt/sources.list.d/kismet.list
+sudo apt update && sudo apt install -y kismet
+sudo usermod -aG kismet ps
+```
+
+### 13.2 qFlipper (Flipper Zero management)
+
+```bash
+sudo apt install -y flatpak
+sudo flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+sudo flatpak install -y flathub one.flipperzero.qFlipper
+```
+
+Install udev rules for USB Flipper access:
+```bash
+cat > /tmp/42-flipperzero.rules << 'RULES'
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5740", TAG+="uaccess"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="5740", MODE="0666", GROUP="plugdev"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="df11", TAG+="uaccess"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="df11", MODE="0666", GROUP="plugdev"
+RULES
+sudo cp /tmp/42-flipperzero.rules /etc/udev/rules.d/
+sudo udevadm control --reload-rules && sudo udevadm trigger
+sudo usermod -aG plugdev ps
+```
+
+### 13.3 USB Serial (OUIspy, Meshtastic, LoRa nodes)
+
+```bash
+sudo usermod -aG dialout ps
+```
+
+Log out and back in after any usermod for groups to take effect.
+
+### 13.4 Installed Versions (as of 2026-06-03)
+
+| Tool | Version |
+|------|---------|
+| Wireshark | 4.2.2 |
+| tshark | 4.2.2 |
+| aircrack-ng | — |
+| hashcat | v6.2.6 |
+| Kismet | 2025.09.0 |
+| qFlipper | 1.3.3 (Flatpak) |
+
+**Field ops quick reference:** `Cyberdeck/M2_FIELD_QUICKREF.md`
+
+## Future: SDR / Ham Radio
+
 - [ ] **GNU Radio** — SDR signal processing suite
 - [ ] **GQRX** — SDR receiver GUI (RTL-SDR / HackRF)
 - [ ] **Direwolf** — software AX.25 TNC for APRS
-- [ ] **JS8Call** — keyboard-to-keyboard HF messaging
-- [ ] **WSJT-X** — weak signal digital modes (FT8/FT4)
-- [ ] **fldigi** — digital mode suite (PSK31, RTTY, etc.)
-- [ ] **PySDR** — Python SDR toolkit
-- [ ] **Meshtastic CLI** — `pip install meshtastic` — USB serial to Heltec nodes
-- [ ] **RNode driver** — Reticulum interface tools for LEFT LoRa node
+- [ ] **CHIRP** — radio programming (`sudo apt install chirp`)
+- [ ] **Meshtastic CLI** — `pip install meshtastic`
+- [ ] **RNode driver** — Reticulum interface tools for LoRa node
 
-> Note: Confirm USB serial permissions before event.
-> `sudo usermod -aG dialout ps` — required for USB serial access to LoRa nodes.
+> USB serial permissions (`dialout` group) required for all serial-connected hardware.
 
 ---
 
