@@ -36,7 +36,7 @@ _script_dir = os.path.dirname(os.path.abspath(__file__))
 FONTS       = os.path.join(_script_dir, "../../scripts/fonts")
 ASSETS      = os.path.join(_script_dir, "../../community-outreach/assets")
 LOGO_PATH   = os.path.join(ASSETS, "lfhi-logo.png")
-OUTPUT_DIR  = os.path.join(_script_dir, "../pdf")
+OUTPUT_DIR  = os.path.join(_script_dir, "../../operational-pdfs")
 
 
 def ff(name, sz):
