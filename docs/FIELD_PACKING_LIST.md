@@ -12,7 +12,7 @@ Meshtastic fleet, field laptop, and repair/recovery gear.
 - [ ] Router
 - [ ] NVMe drive — seated in tactical Pi, verify before pack
 - [ ] Kiosk display + mount hardware
-- [ ] HDMI cable (comms Pi → display)
+- [ ] Micro-HDMI to HDMI cable (comms Pi 5 → display) — braided, not flat
 - [ ] Rack enclosure / case / carry bag
 
 ---
