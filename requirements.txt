@@ -1,0 +1,10 @@
+# M2 Community Node — Python dependencies
+# Install: pip3 install -r requirements.txt
+# Note: psycopg2-binary requires libpq-dev on Linux: sudo apt install -y libpq-dev
+
+reportlab>=4.0
+Pillow>=10.0
+psycopg2-binary>=2.9
+qrcode[pil]>=7.4
+meshtastic>=2.3
+pyserial>=3.5
