@@ -16,7 +16,6 @@ Requires:
 
 import json
 import subprocess
-import socket
 import os
 import time
 
@@ -24,7 +23,7 @@ import time
 # Override with environment variables if your IPs differ from the reference build.
 OUT = os.environ.get("M2_STATUS_OUT", "/opt/community-node/data/community-web/status.json")
 PI2_IP = os.environ.get("M2_TACTICAL_IP", "192.168.8.20")
-PI2_SSH = f"ssh -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o BatchMode=yes pi@{PI2_IP}"
+PI2_SSH = f"ssh -o ConnectTimeout=3 -o StrictHostKeyChecking=no -o BatchMode=yes ps@{PI2_IP}"
 MONERO_RPC = f"http://{PI2_IP}:18089/get_info"
 HEADSCALE_DOMAIN = os.environ.get("M2_HEADSCALE_DOMAIN", "m2vpn.yourdomain.com")
 
@@ -60,13 +59,15 @@ services["cloudflared"] = check_in_ps("cloudflared", pi1_ps)
 services["tor"]         = check_in_ps("tor", pi1_ps)
 
 # Pi #2 — remote containers (tactical node)
-services["monerod"]        = check_in_ps("monerod", pi2_ps)
-services["headscale"]      = check_in_ps("headscale", pi2_ps)
-# OTS runs under systemd (not Docker) — check via SSH systemctl
+services["monerod"]    = check_in_ps("monerod", pi2_ps)
+services["mosquitto"]  = check_in_ps("mosquitto", pi2_ps)
+services["reticulum"]  = check_in_ps("reticulum", pi2_ps)
+
+# Headscale and OTS both run as systemd on Pi #2 (not Docker)
+_hs_status = run(PI2_SSH + " systemctl is-active headscale 2>/dev/null")
+services["headscale"] = "up" if _hs_status == "active" else "down"
 _ots_status = run(PI2_SSH + " systemctl is-active opentakserver 2>/dev/null")
-services["opentakserver"]  = "up" if _ots_status == "active" else "down"
-services["mosquitto"]      = check_in_ps("mosquitto", pi2_ps)
-services["reticulum"]      = check_in_ps("reticulum", pi2_ps)
+services["opentakserver"] = "up" if _ots_status == "active" else "down"
 
 
 # --- System Vitals ---------------------------------------------------------
@@ -81,33 +82,25 @@ else:
 # Public IP (one external call per minute — acceptable for status dashboard)
 public_ip = run("curl -s --max-time 5 ifconfig.me") or "—"
 
-# DDNS match — compare public IP to what DNS resolves for headscale domain.
-# Uses Python socket so no external tool dependency (no dig/nslookup needed).
-ddns_match = None
-if public_ip != "—":
-    try:
-        dns_ip = socket.gethostbyname(HEADSCALE_DOMAIN)
-        ddns_match = (public_ip == dns_ip)
-    except Exception:
-        ddns_match = None
+# Tunnel health — M2 uses Cloudflare Tunnel so the Pi's public IP never
+# matches any DNS record. Check clearnet reachability via the VPN health
+# endpoint instead. ddns_match=True means the tunnel is up and reachable.
+try:
+    _url = "https://" + HEADSCALE_DOMAIN + "/health"
+    _code = run("curl -sk --max-time 5 -o /dev/null -w '%{http_code}' " + _url)
+    ddns_match = (_code == "200")
+except Exception:
+    ddns_match = None
 
-# Headscale peers — exec into the headscale container on Pi #2.
-# Find container name dynamically from docker ps output.
+# Headscale peers — run binary directly on Pi #2 via SSH.
+# Requires passwordless sudo for headscale binary (add to /etc/sudoers.d/).
 hs_peers = 0
-hs_container = ""
-for name in pi2_ps.split("\n"):
-    # pi2_ps is now container names only (one per line from --format)
-    if "headscale" in name.lower():
-        hs_container = name.strip()
-        break
-
-if hs_container:
-    hs_raw = run(PI2_SSH + " docker exec " + hs_container + " headscale nodes list -o json 2>/dev/null")
-    if hs_raw:
-        try:
-            hs_peers = len(json.loads(hs_raw))
-        except Exception:
-            hs_peers = 0
+hs_raw = run(PI2_SSH + " sudo /usr/local/bin/headscale nodes list -o json 2>/dev/null", timeout=8)
+if hs_raw:
+    try:
+        hs_peers = len(json.loads(hs_raw))
+    except Exception:
+        hs_peers = 0
 
 # Monero sync — query the restricted RPC directly over LAN (no SSH needed).
 # /get_info returns height, target_height, and synchronized fields.
