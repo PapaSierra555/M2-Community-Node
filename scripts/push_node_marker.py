@@ -8,8 +8,8 @@ import sys
 
 HOST = "127.0.0.1"
 PORT = 8088
-LAT = "28.5565"
-LON = "-81.1551"
+LAT = "34.24"
+LON = "-79.80"
 HAE = "23"
 CALLSIGN = "Community Node"
 UID = "1cec9ca6-0b35-415f-9fd6-5aaf43094c79"
