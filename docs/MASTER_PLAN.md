@@ -109,7 +109,7 @@ Complete table of all services across the entire stack:
 | **Nginx** | Reverse proxy, SSL termination | `nginx:1.28.2-alpine3.23` | 20-40 MB | 128 MB | 10 MB | 80, 443, 8448, 8080, 8081 | All | #1 |
 | **i2pd** | I2P router, eepsite hosting | `purplei2p/i2pd:release-2.59.0` | 60-100 MB | 256 MB | 50-200 MB | 7070, 4444, 4447, 7656 | I2P | #1 |
 | **Tor** | Hidden services, SOCKS proxy | `osminogin/tor-simple:0.4.8.21` | 30-60 MB | 128 MB | 50-100 MB | 9050 | Tor | #1 |
-| **Cloudflared** | Cloudflare Tunnel (clearnet) | `cloudflare/cloudflared:2026.2.0` | 30-50 MB | 128 MB | <10 MB | (outbound only) | Clearnet | #1 |
+| **Cloudflared** | Cloudflare Tunnel (clearnet) | `cloudflare/cloudflared:2026.10.3` | 30-50 MB | 128 MB | <10 MB | (outbound only) | Clearnet | #1 |
 | **OpenTAK Server** | TAK/ATAK situational awareness + web map UI | Native (systemd) v1.7.9 | 300-600 MB | 1 GB | 2-5 GB | 8080, 8088, 8089, 8443, 8446 | Clearnet/VPN | #2 |
 | **RabbitMQ** | Message broker for OTS | Installed with OTS | ~200 MB | 256 MB | 100 MB | 5672, 15672 | Internal | #2 |
 | **Mumble** | Push-to-talk voice (OTS auth integration) | Native install | 30-50 MB | 128 MB | <50 MB | 64738 | LAN + VPN | #2 |
@@ -399,7 +399,7 @@ services:
 
   # ==== CLOUDFLARE TUNNEL - Clearnet Access ====
   cloudflared:
-    image: cloudflare/cloudflared:2026.2.0
+    image: cloudflare/cloudflared:2026.10.3
     container_name: cloudflared
     restart: unless-stopped
     command: tunnel run

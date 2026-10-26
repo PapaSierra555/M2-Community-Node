@@ -160,7 +160,7 @@ docker pull vectorim/element-web:v1.12.11
 docker pull nginx:1.28.2-alpine3.23
 docker pull purplei2p/i2pd:release-2.59.0
 docker pull osminogin/tor-simple:0.4.8.21
-docker pull cloudflare/cloudflared:2026.2.0
+docker pull cloudflare/cloudflared:2026.10.3
 
 # Node #2 — Tactical/Crypto Stack
 docker pull ghcr.io/sethforprivacy/simple-monerod:v0.18.4.5
@@ -178,7 +178,7 @@ docker pull headscale/headscale:0.28.0
 > | `nginx` | `1.28.2-alpine3.23` | Stable branch, Alpine 3.23 |
 > | `purplei2p/i2pd` | `release-2.59.0` | Latest stable, Feb 2026 |
 > | `osminogin/tor-simple` | `0.4.8.21` | Mirrors Tor version |
-> | `cloudflare/cloudflared` | `2026.2.0` | CalVer, update monthly |
+> | `cloudflare/cloudflared` | `2026.10.3` | CalVer, update monthly |
 > | `simple-monerod` | `v0.18.4.5` | Monero Fluorine Fermi |
 > | `OpenTAKServer` | `v1.7.9` | Native install (systemd) — not Docker. Pi installer is production-ready. |
 > | `python` | `3.12.12-slim-bookworm` | Oct 2025 patch release (Reticulum/NomadNet) |
@@ -933,7 +933,7 @@ services:
 
   # ── Cloudflare Tunnel (optional — disable when air-gapped) ──
   cloudflared:
-    image: cloudflare/cloudflared:2026.2.0
+    image: cloudflare/cloudflared:2026.10.3
     restart: unless-stopped
     networks:
       - community-net
